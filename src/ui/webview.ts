@@ -35,6 +35,9 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
       case 'refresh':
         vscode.commands.executeCommand('depChecker.refresh');
         break;
+      case 'pin':
+        if (msg.id) await this.service.togglePin(msg.id);
+        break;
       case 'open':
         if (msg.id) {
           const found = this.service.findDependency(msg.id);
@@ -69,6 +72,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
         updateType: d.updateType,
         section: d.section,
         error: d.error ?? null,
+        pinned: d.pinned,
         options:
           d.current && d.upgradeable.length
             ? d.versions.map((v) => {
@@ -92,7 +96,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-:root { --cols: 20px minmax(0,1fr) 86px 150px 50px; }
+:root { --cols: 20px minmax(0,1fr) 86px 150px 50px 26px; }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 0; font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); }
 .toolbar { position: sticky; top: 0; z-index: 5; background: var(--vscode-sideBar-background); padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 0 var(--vscode-panel-border); }
@@ -122,6 +126,12 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
 .c-cur { font-size: 12px; opacity: .65; text-align: right; white-space: nowrap; }
 .c-cur .arrow { opacity: .45; margin-left: 5px; }
 .c-badge { text-align: right; }
+.pin { background: none; border: none; padding: 2px; cursor: pointer; opacity: .35; font-size: 13px; line-height: 1; color: var(--vscode-foreground); border-radius: 4px; }
+.pin:hover { opacity: .8; background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,.15)); }
+.pin.on { opacity: 1; color: var(--vscode-charts-orange, #ff9d3c); }
+.dep.pinned { background: rgba(255,140,40,.06); }
+.dep.pinned .name { color: var(--vscode-descriptionForeground); }
+select:disabled { opacity: .5; }
 select { width: 100%; background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border)); border-radius: 4px; padding: 3px 4px; }
 .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; font-weight: 600; }
 .major { background: rgba(244,71,71,.18); color: #f25555; }
@@ -155,6 +165,7 @@ input[type=checkbox] { cursor: pointer; accent-color: var(--vscode-button-backgr
     <div class="r">Mevcut</div>
     <div>Hedef sürüm</div>
     <div class="r">Tür</div>
+    <div></div>
   </div>
 </div>
 <div id="content"></div>
@@ -179,6 +190,7 @@ function badgeFor(o, fallback){
 }
 
 function isOutdated(d){ return d.options && d.options.length > 0 && !d.error; }
+function selectable(d){ return isOutdated(d) && !d.pinned; }
 function visibleDeps(g){ return g.dependencies.filter(d => !filter || d.name.toLowerCase().includes(filter)); }
 
 function render() {
@@ -196,25 +208,26 @@ function render() {
     const deps = visibleDeps(g);
     if (deps.length === 0) continue;
     const outdated = deps.filter(isOutdated);
+    const sel = deps.filter(selectable);
     const open = !collapsed.has(g.manifestPath);
     html += '<div class="group">';
     html += '<div class="ghead" data-mf="'+esc(g.manifestPath)+'">'
       + '<span class="chev">'+(open?'▾':'▸')+'</span>'
-      + '<input type="checkbox" class="gsel" data-mf="'+esc(g.manifestPath)+'" '+(outdated.length>0 && outdated.every(d=>checked.has(d.id))?'checked':'')+' '+(outdated.length===0?'disabled':'')+'>'
+      + '<input type="checkbox" class="gsel" data-mf="'+esc(g.manifestPath)+'" '+(sel.length>0 && sel.every(d=>checked.has(d.id))?'checked':'')+' '+(sel.length===0?'disabled':'')+'>'
       + '<span class="title">'+esc(g.ecosystemLabel)+' · '+esc(g.relPath)+'</span>'
       + '<span class="count">'+(outdated.length? outdated.length+' güncelleme':'güncel')+'</span>'
       + '</div>';
     if (open) {
       deps.forEach((d, i) => {
         const out = isOutdated(d);
-        html += '<div class="dep'+(out?'':' muted')+(i%2?' alt':'')+'">';
-        html += '<div>'+(out? '<input type="checkbox" class="dsel" data-id="'+esc(d.id)+'" '+(checked.has(d.id)?'checked':'')+'>':'')+'</div>';
+        html += '<div class="dep'+(out?'':' muted')+(d.pinned?' pinned':'')+(i%2?' alt':'')+'">';
+        html += '<div>'+(out && !d.pinned ? '<input type="checkbox" class="dsel" data-id="'+esc(d.id)+'" '+(checked.has(d.id)?'checked':'')+'>':'')+'</div>';
         html += '<div><span class="name" data-id="'+esc(d.id)+'">'+esc(d.name)+'</span>'
           + (d.error? '<div class="sub">'+esc(d.error)+'</div>':'')+'</div>';
         html += '<div class="c-cur">'+esc(d.current)+(out?'<span class="arrow">→</span>':'')+'</div>';
         if (out) {
           const sel = chosen.get(d.id) || d.latest;
-          html += '<div><select class="ver" data-id="'+esc(d.id)+'">';
+          html += '<div><select class="ver" data-id="'+esc(d.id)+'"'+(d.pinned?' disabled':'')+'>';
           for (const o of d.options) {
             const oc = o.deprecated ? ' class="opt-dep"' : (o.kind==='down' ? ' class="opt-down"' : '');
             html += '<option value="'+esc(o.version)+'"'+oc+' '+(o.version===sel?'selected':'')+'>'+esc(optLabel(o))+'</option>';
@@ -226,6 +239,7 @@ function render() {
           html += '<div></div>';
           html += '<div class="c-badge">'+(d.error?'':'<span class="badge none">güncel</span>')+'</div>';
         }
+        html += '<div>'+(d.error?'':'<button class="pin'+(d.pinned?' on':'')+'" data-id="'+esc(d.id)+'" title="'+(d.pinned?'Sabitlemeyi kaldır':'Sürümü sabitle — toplu güncellemeden hariç tut')+'">📌</button>')+'</div>';
         html += '</div>';
       });
     }
@@ -250,9 +264,14 @@ function bind() {
   document.querySelectorAll('.gsel').forEach(n => n.addEventListener('change', e => {
     const mf = e.target.dataset.mf;
     const g = state.groups.find(x => x.manifestPath === mf);
-    const outs = visibleDeps(g).filter(isOutdated);
+    const outs = visibleDeps(g).filter(selectable);
     if (e.target.checked) outs.forEach(d => checked.add(d.id)); else outs.forEach(d => checked.delete(d.id));
     render();
+  }));
+  document.querySelectorAll('.pin').forEach(n => n.addEventListener('click', e => {
+    const id = e.currentTarget.dataset.id;
+    checked.delete(id);
+    vscode.postMessage({ type: 'pin', id });
   }));
   document.querySelectorAll('.ver').forEach(n => n.addEventListener('change', e => {
     chosen.set(e.target.dataset.id, e.target.value);
@@ -265,7 +284,7 @@ function bind() {
 
 function allOutdated() {
   const out = [];
-  for (const g of state.groups) for (const d of visibleDeps(g)) if (isOutdated(d)) out.push(d);
+  for (const g of state.groups) for (const d of visibleDeps(g)) if (selectable(d)) out.push(d);
   return out;
 }
 
@@ -297,7 +316,7 @@ window.addEventListener('message', e => {
   if (e.data?.type === 'data') {
     state = e.data;
     const liveOut = new Set();
-    state.groups.forEach(g => g.dependencies.forEach(d => { if (isOutdated(d)) liveOut.add(d.id); }));
+    state.groups.forEach(g => g.dependencies.forEach(d => { if (selectable(d)) liveOut.add(d.id); }));
     [...checked].forEach(id => { if (!liveOut.has(id)) checked.delete(id); });
     render();
   }

@@ -10,6 +10,7 @@ import {
   pickLatest,
   upgradeableVersions,
 } from './semver';
+import { PinStore } from './pinStore';
 import {
   EcosystemProvider,
   allProviders,
@@ -37,7 +38,7 @@ function config() {
 }
 
 export function depId(d: Dependency): string {
-  return `${d.manifestPath}::${d.section}::${d.name}`;
+  return `${vscode.workspace.asRelativePath(d.manifestPath)}::${d.section}::${d.name}`;
 }
 
 export class DepService {
@@ -47,8 +48,31 @@ export class DepService {
   readonly onDidChange = this._onDidChange.event;
   scanning = false;
 
+  constructor(private readonly pins: PinStore) {}
+
   getGroups(): ManifestGroup[] {
     return this.groups;
+  }
+
+  isPinned(id: string): boolean {
+    return this.pins.has(id);
+  }
+
+  async togglePin(id: string): Promise<void> {
+    const pinned = await this.pins.toggle(id);
+    for (const g of this.groups) {
+      const live = g.dependencies.find((d) => depId(d) === id);
+      if (live) live.pinned = pinned;
+    }
+    this._onDidChange.fire();
+  }
+
+  reloadPins(): void {
+    this.pins.reload();
+    for (const g of this.groups) {
+      for (const d of g.dependencies) d.pinned = this.pins.has(depId(d));
+    }
+    this._onDidChange.fire();
   }
 
   findDependency(id: string): { dep: Dependency; provider: EcosystemProvider } | undefined {
@@ -96,6 +120,7 @@ export class DepService {
             upgradeable: [],
             versions: [],
             deprecated: [],
+            pinned: this.pins.has(`${vscode.workspace.asRelativePath(uri.fsPath)}::${p.section}::${p.name}`),
           };
           const current = p.current;
           if (!current) return base;
@@ -172,7 +197,7 @@ export class DepService {
     const byManifest = new Map<string, { dep: Dependency; version: string }[]>();
     for (const item of items) {
       const found = this.findDependency(item.id);
-      if (!found || !item.version) continue;
+      if (!found || !item.version || this.pins.has(item.id)) continue;
       const list = byManifest.get(found.dep.manifestPath) ?? [];
       list.push({ dep: found.dep, version: item.version });
       byManifest.set(found.dep.manifestPath, list);
@@ -200,7 +225,9 @@ export class DepService {
     if (!group) return 0;
     const provider = providerForFile(manifestPath);
     if (!provider) return 0;
-    const targets = group.dependencies.filter((d) => d.latest && d.updateType !== 'none' && d.updateType !== 'unknown');
+    const targets = group.dependencies.filter(
+      (d) => d.latest && d.updateType !== 'none' && d.updateType !== 'unknown' && !this.pins.has(depId(d))
+    );
     if (targets.length === 0) return 0;
     this.writeManifest(manifestPath, (content) => {
       let out = content;

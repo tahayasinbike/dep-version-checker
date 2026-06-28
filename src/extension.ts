@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DepService } from './core/service';
+import { DepService, depId } from './core/service';
+import { PinStore } from './core/pinStore';
 import { Dependency } from './core/types';
 import { classifyUpdate } from './core/semver';
 import { registerProvider } from './providers/provider';
@@ -20,7 +21,12 @@ export function activate(context: vscode.ExtensionContext) {
   registerProvider(cargoProvider);
   registerProvider(composerProvider);
 
-  const service = new DepService();
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  const pinsFile = folder
+    ? vscode.Uri.joinPath(folder.uri, '.vscode', 'dep-version-checker.json').fsPath
+    : undefined;
+  const pinStore = new PinStore(pinsFile);
+  const service = new DepService(pinStore);
   const webview = new DepWebviewProvider(context.extensionUri, service);
   const codeLens = new DepCodeLensProvider(service);
 
@@ -46,6 +52,11 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('depChecker.refresh', refresh),
+
+    vscode.commands.registerCommand('depChecker.togglePin', async (arg) => {
+      const id = arg?.id;
+      if (id) await service.togglePin(id);
+    }),
 
     vscode.commands.registerCommand('depChecker.openInManifest', async (arg) => {
       const dep = argDep(arg);
@@ -101,7 +112,10 @@ export function activate(context: vscode.ExtensionContext) {
         .getGroups()
         .reduce(
           (n, g) =>
-            n + g.dependencies.filter((d) => d.updateType !== 'none' && d.updateType !== 'unknown').length,
+            n +
+            g.dependencies.filter(
+              (d) => d.updateType !== 'none' && d.updateType !== 'unknown' && !service.isPinned(depId(d))
+            ).length,
           0
         );
       if (count === 0) {
@@ -136,8 +150,14 @@ export function activate(context: vscode.ExtensionContext) {
   lockWatcher.onDidChange(() => debouncedRefresh(800));
   lockWatcher.onDidCreate(() => debouncedRefresh(800));
 
+  const pinsWatcher = vscode.workspace.createFileSystemWatcher('**/.vscode/dep-version-checker.json');
+  pinsWatcher.onDidChange(() => service.reloadPins());
+  pinsWatcher.onDidCreate(() => service.reloadPins());
+  pinsWatcher.onDidDelete(() => service.reloadPins());
+
   context.subscriptions.push(
     lockWatcher,
+    pinsWatcher,
     vscode.workspace.onDidSaveTextDocument((doc) => {
       if (/(package|composer)\.json$|Cargo\.toml$|pyproject\.toml$|requirements.*\.txt$/.test(doc.fileName)) {
         debouncedRefresh(600);

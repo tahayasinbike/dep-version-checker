@@ -29,11 +29,22 @@ export class DepCodeLensProvider implements vscode.CodeLensProvider {
       const outdated = dep.updateType !== 'none' && dep.updateType !== 'unknown';
       if (!outdated || !dep.latest) continue;
       const range = document.lineAt(dep.line).range;
+      const id = depId(dep);
+      if (dep.pinned) {
+        lenses.push(
+          new vscode.CodeLens(range, {
+            title: `📌 sabit (kaldır)`,
+            command: 'depChecker.togglePin',
+            arguments: [{ id }],
+          })
+        );
+        continue;
+      }
       lenses.push(
         new vscode.CodeLens(range, {
           title: `↑ ${dep.latest} (${TYPE_LABEL[dep.updateType] ?? dep.updateType})`,
           command: 'depChecker.updateDependency',
-          arguments: [{ id: depId(dep), version: dep.latest }],
+          arguments: [{ id, version: dep.latest }],
         })
       );
       if (dep.upgradeable.length > 1) {
@@ -41,10 +52,17 @@ export class DepCodeLensProvider implements vscode.CodeLensProvider {
           new vscode.CodeLens(range, {
             title: 'sürüm seç…',
             command: 'depChecker.updateToVersion',
-            arguments: [{ id: depId(dep) }],
+            arguments: [{ id }],
           })
         );
       }
+      lenses.push(
+        new vscode.CodeLens(range, {
+          title: '📌 sabitle',
+          command: 'depChecker.togglePin',
+          arguments: [{ id }],
+        })
+      );
     }
     return lenses;
   }
