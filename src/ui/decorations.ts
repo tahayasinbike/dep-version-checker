@@ -2,23 +2,27 @@ import * as vscode from 'vscode';
 import { DepService } from '../core/service';
 import { providerForFile } from '../providers/provider';
 
-const STATUS: Record<string, string> = {
-  major: '⚠️',
-  minor: '🟢',
-  patch: '🔵',
-  none: '✅',
+const STATUS_FILE: Record<string, string> = {
+  major: 'major.svg',
+  minor: 'minor.svg',
+  patch: 'patch.svg',
+  none: 'none.svg',
 };
 
 export class DepDecorations {
-  private readonly type: vscode.TextEditorDecorationType;
+  private readonly types: Record<string, vscode.TextEditorDecorationType> = {};
   private readonly disposables: vscode.Disposable[] = [];
 
-  constructor(private readonly service: DepService) {
-    this.type = vscode.window.createTextEditorDecorationType({
-      rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-    });
+  constructor(extensionUri: vscode.Uri, private readonly service: DepService) {
+    for (const [status, file] of Object.entries(STATUS_FILE)) {
+      const type = vscode.window.createTextEditorDecorationType({
+        gutterIconPath: vscode.Uri.joinPath(extensionUri, 'resources', 'gutter', file),
+        gutterIconSize: 'contain',
+      });
+      this.types[status] = type;
+      this.disposables.push(type);
+    }
     this.disposables.push(
-      this.type,
       service.onDidChange(() => this.refreshAll()),
       vscode.window.onDidChangeActiveTextEditor(() => this.refreshAll()),
       vscode.window.onDidChangeVisibleTextEditors(() => this.refreshAll()),
@@ -40,33 +44,18 @@ export class DepDecorations {
 
   private apply(editor: vscode.TextEditor): void {
     const doc = editor.document;
-    if (!providerForFile(doc.uri.fsPath)) {
-      editor.setDecorations(this.type, []);
-      return;
+    const provider = providerForFile(doc.uri.fsPath);
+    const group = provider && this.service.getGroups().find((g) => g.manifestPath === doc.uri.fsPath);
+    const buckets: Record<string, vscode.Range[]> = { major: [], minor: [], patch: [], none: [] };
+    if (group) {
+      for (const dep of group.dependencies) {
+        if (dep.error || dep.updateType === 'unknown') continue;
+        if (dep.line < 0 || dep.line >= doc.lineCount) continue;
+        buckets[dep.updateType]?.push(new vscode.Range(dep.line, 0, dep.line, 0));
+      }
     }
-    const group = this.service.getGroups().find((g) => g.manifestPath === doc.uri.fsPath);
-    if (!group) {
-      editor.setDecorations(this.type, []);
-      return;
+    for (const status of Object.keys(this.types)) {
+      editor.setDecorations(this.types[status], buckets[status] ?? []);
     }
-    const opts: vscode.DecorationOptions[] = [];
-    for (const dep of group.dependencies) {
-      if (dep.error || dep.updateType === 'unknown') continue;
-      if (dep.line < 0 || dep.line >= doc.lineCount) continue;
-      const symbol = STATUS[dep.updateType];
-      if (!symbol) continue;
-      const len = doc.lineAt(dep.line).text.length;
-      const range = new vscode.Range(dep.line, len, dep.line, len);
-      opts.push({
-        range,
-        renderOptions: {
-          after: {
-            contentText: ' ' + symbol,
-            textDecoration: 'none; font-size: 1.2em; vertical-align: -12%',
-          },
-        },
-      });
-    }
-    editor.setDecorations(this.type, opts);
   }
 }

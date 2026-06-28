@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
   const service = new DepService(pinStore);
   const webview = new DepWebviewProvider(context.extensionUri, service);
   const codeLens = new DepCodeLensProvider(service);
-  context.subscriptions.push(new DepDecorations(service));
+  context.subscriptions.push(new DepDecorations(context.extensionUri, service));
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('depCheckerView', webview),
