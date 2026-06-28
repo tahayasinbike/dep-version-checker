@@ -107,6 +107,10 @@ export const npmProvider: EcosystemProvider = {
     return 'npm install';
   },
 
+  registryUrl(name) {
+    return `https://www.npmjs.com/package/${name}`;
+  },
+
   async peerDependencies(name, version, timeoutMs) {
     const data = await fetchJson<any>(`https://registry.npmjs.org/${name}/${version}`, { timeoutMs });
     const peers = data.peerDependencies ?? {};

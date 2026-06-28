@@ -36,12 +36,12 @@ export function fetchJson<T = any>(url: string, opts: FetchOptions = {}): Promis
           try {
             resolve(JSON.parse(body) as T);
           } catch (e) {
-            reject(new Error(`JSON ayrıştırma hatası: ${url}`));
+            reject(new Error(`JSON parse error: ${url}`));
           }
         });
       }
     );
     req.on('error', reject);
-    req.setTimeout(timeoutMs, () => req.destroy(new Error(`Zaman aşımı: ${url}`)));
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`Timeout: ${url}`)));
   });
 }

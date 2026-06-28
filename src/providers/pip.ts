@@ -118,6 +118,10 @@ export const pipProvider: EcosystemProvider = {
     return lines.join('\n');
   },
 
+  registryUrl(name) {
+    return `https://pypi.org/project/${name}/`;
+  },
+
   installCommand(manifestPath) {
     const base = path.basename(manifestPath);
     if (base === 'pyproject.toml') {

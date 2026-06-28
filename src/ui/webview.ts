@@ -38,6 +38,12 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
       case 'pin':
         if (msg.id) await this.service.togglePin(msg.id);
         break;
+      case 'openExternal':
+        if (msg.id) vscode.commands.executeCommand('depChecker.openHomepage', { id: msg.id });
+        break;
+      case 'pinNote':
+        if (msg.id) vscode.commands.executeCommand('depChecker.editPinNote', { id: msg.id });
+        break;
       case 'open':
         if (msg.id) {
           const found = this.service.findDependency(msg.id);
@@ -67,6 +73,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
         section: d.section,
         error: d.error ?? null,
         pinned: d.pinned,
+        pinNote: d.pinNote ?? null,
         options:
           d.current && d.upgradeable.length
             ? d.versions.map((v) => {
@@ -84,13 +91,13 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
     const n = nonce();
     const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${n}';`;
     return `<!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-:root { --cols: 20px minmax(0,1fr) 86px 150px 50px 26px; }
+:root { --cols: 20px minmax(0,1fr) 86px 150px 50px 48px; }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 0; font-family: var(--vscode-font-family); font-size: var(--vscode-font-size); color: var(--vscode-foreground); }
 .toolbar { position: sticky; top: 0; z-index: 5; background: var(--vscode-sideBar-background); padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 0 var(--vscode-panel-border); }
@@ -116,13 +123,17 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
 .dep.muted { opacity: .5; }
 .name { font-weight: 500; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .name:hover { text-decoration: underline; }
+.extlink { margin-left: 6px; cursor: pointer; opacity: .4; font-size: 11px; user-select: none; }
+.extlink:hover { opacity: 1; color: var(--vscode-textLink-foreground); }
 .sub { font-size: 11px; opacity: .75; }
 .c-cur { font-size: 12px; opacity: .65; text-align: right; white-space: nowrap; }
 .c-cur .arrow { opacity: .45; margin-left: 5px; }
 .c-badge { text-align: right; }
-.pin { background: none; border: none; padding: 2px; cursor: pointer; opacity: .35; font-size: 13px; line-height: 1; color: var(--vscode-foreground); border-radius: 4px; }
-.pin:hover { opacity: .8; background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,.15)); }
+.pincell { display: flex; gap: 1px; align-items: center; justify-content: flex-end; }
+.pin, .notebtn { background: none; border: none; padding: 2px; cursor: pointer; opacity: .35; font-size: 13px; line-height: 1; color: var(--vscode-foreground); border-radius: 4px; }
+.pin:hover, .notebtn:hover { opacity: .9; background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,.15)); }
 .pin.on { opacity: 1; color: var(--vscode-charts-orange, #ff9d3c); }
+.notebtn.has { opacity: 1; color: var(--vscode-charts-blue, #4d8de0); }
 .dep.pinned { background: rgba(255,140,40,.06); }
 .dep.pinned .name { color: var(--vscode-descriptionForeground); }
 select:disabled { opacity: .5; }
@@ -146,19 +157,19 @@ input[type=checkbox] { cursor: pointer; accent-color: var(--vscode-button-backgr
 <body>
 <div class="toolbar">
   <div class="row1">
-    <input id="search" class="search" placeholder="Paket ara…" />
-    <button id="refresh" class="ghost" title="Yeniden tara">⟳</button>
+    <input id="search" class="search" placeholder="Search package…" />
+    <button id="refresh" class="ghost" title="Rescan">⟳</button>
   </div>
   <div class="row1">
-    <button id="updateBtn" class="primary" disabled>Seçilenleri Güncelle</button>
-    <div class="selrow"><input type="checkbox" id="selAll"><label for="selAll">Tümünü seç</label></div>
+    <button id="updateBtn" class="primary" disabled>Update Selected</button>
+    <div class="selrow"><input type="checkbox" id="selAll"><label for="selAll">Select all</label></div>
   </div>
   <div class="colhead">
     <div></div>
-    <div>Paket</div>
-    <div class="r">Mevcut</div>
-    <div>Hedef sürüm</div>
-    <div class="r">Tür</div>
+    <div>Package</div>
+    <div class="r">Current</div>
+    <div>Target version</div>
+    <div class="r">Type</div>
     <div></div>
   </div>
 </div>
@@ -173,13 +184,13 @@ let filter = '';
 
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const KIND = {major:'major',minor:'minor',patch:'patch',current:'mevcut',down:'düşük'};
+const KIND = {major:'major',minor:'minor',patch:'patch',current:'current',down:'down'};
 function optLabel(o){ const k = KIND[o.kind]||o.kind; return o.version+' ('+k+(o.deprecated?', deprecated':'')+')'; }
 function badgeFor(o, fallback){
   if(!o) return {cls:fallback||'unknown', text:fallback||'?'};
   if(o.deprecated) return {cls:'dep', text:'deprecated'};
-  if(o.kind==='current') return {cls:'none', text:'güncel'};
-  if(o.kind==='down') return {cls:'down', text:'düşür'};
+  if(o.kind==='current') return {cls:'none', text:'current'};
+  if(o.kind==='down') return {cls:'down', text:'downgrade'};
   return {cls:o.kind, text:o.kind};
 }
 
@@ -190,11 +201,11 @@ function visibleDeps(g){ return g.dependencies.filter(d => !filter || d.name.toL
 function render() {
   const c = el('content');
   if (state.scanning && state.groups.length === 0) {
-    c.innerHTML = '<div class="empty"><span class="spinner"></span><span>Taranıyor…</span></div>';
+    c.innerHTML = '<div class="empty"><span class="spinner"></span><span>Scanning…</span></div>';
     return;
   }
   if (state.groups.length === 0) {
-    c.innerHTML = '<div class="empty">Desteklenen bir manifest bulunamadı.<br>(package.json, requirements.txt, pyproject.toml, Cargo.toml, composer.json)</div>';
+    c.innerHTML = '<div class="empty">No supported manifest found.<br>(package.json, requirements.txt, pyproject.toml, Cargo.toml, composer.json)</div>';
     return;
   }
   let html = '';
@@ -209,7 +220,7 @@ function render() {
       + '<span class="chev">'+(open?'▾':'▸')+'</span>'
       + '<input type="checkbox" class="gsel" data-mf="'+esc(g.manifestPath)+'" '+(sel.length>0 && sel.every(d=>checked.has(d.id))?'checked':'')+' '+(sel.length===0?'disabled':'')+'>'
       + '<span class="title">'+esc(g.ecosystemLabel)+' · '+esc(g.relPath)+'</span>'
-      + '<span class="count">'+(outdated.length? outdated.length+' güncelleme':'güncel')+'</span>'
+      + '<span class="count">'+(outdated.length? outdated.length+' update'+(outdated.length>1?'s':''):'up to date')+'</span>'
       + '</div>';
     if (open) {
       deps.forEach((d, i) => {
@@ -217,6 +228,7 @@ function render() {
         html += '<div class="dep'+(out?'':' muted')+(d.pinned?' pinned':'')+(i%2?' alt':'')+'">';
         html += '<div>'+(out && !d.pinned ? '<input type="checkbox" class="dsel" data-id="'+esc(d.id)+'" '+(checked.has(d.id)?'checked':'')+'>':'')+'</div>';
         html += '<div><span class="name" data-id="'+esc(d.id)+'">'+esc(d.name)+'</span>'
+          + '<span class="extlink" data-id="'+esc(d.id)+'" title="Open the package registry page">↗</span>'
           + (d.error? '<div class="sub">'+esc(d.error)+'</div>':'')+'</div>';
         html += '<div class="c-cur">'+esc(d.current)+(out?'<span class="arrow">→</span>':'')+'</div>';
         if (out) {
@@ -231,15 +243,23 @@ function render() {
           html += '<div class="c-badge"><span class="badge '+b.cls+'">'+esc(b.text)+'</span></div>';
         } else {
           html += '<div></div>';
-          html += '<div class="c-badge">'+(d.error?'':'<span class="badge none">güncel</span>')+'</div>';
+          html += '<div class="c-badge">'+(d.error?'':'<span class="badge none">up to date</span>')+'</div>';
         }
-        html += '<div>'+(d.error?'':'<button class="pin'+(d.pinned?' on':'')+'" data-id="'+esc(d.id)+'" title="'+(d.pinned?'Sabitlemeyi kaldır':'Sürümü sabitle — toplu güncellemeden hariç tut')+'">📌</button>')+'</div>';
+        html += '<div class="pincell">';
+        if (!d.error) {
+          html += '<button class="pin'+(d.pinned?' on':'')+'" data-id="'+esc(d.id)+'" title="'+(d.pinned?'Unpin':'Pin this version — excluded from bulk updates')+'">📌</button>';
+          if (d.pinned) {
+            const noteTitle = d.pinNote ? esc(d.pinNote) : 'Add pin reason';
+            html += '<button class="notebtn'+(d.pinNote?' has':'')+'" data-id="'+esc(d.id)+'" title="'+noteTitle+'">ⓘ</button>';
+          }
+        }
+        html += '</div>';
         html += '</div>';
       });
     }
     html += '</div>';
   }
-  c.innerHTML = html || '<div class="empty">Eşleşen paket yok.</div>';
+  c.innerHTML = html || '<div class="empty">No matching package.</div>';
   bind();
   updateBtn();
 }
@@ -267,12 +287,20 @@ function bind() {
     checked.delete(id);
     vscode.postMessage({ type: 'pin', id });
   }));
+  document.querySelectorAll('.notebtn').forEach(n => n.addEventListener('click', e => {
+    e.stopPropagation();
+    vscode.postMessage({ type: 'pinNote', id: e.currentTarget.dataset.id });
+  }));
   document.querySelectorAll('.ver').forEach(n => n.addEventListener('change', e => {
     chosen.set(e.target.dataset.id, e.target.value);
     render();
   }));
   document.querySelectorAll('.name').forEach(n => n.addEventListener('click', e => {
     vscode.postMessage({ type: 'open', id: e.target.dataset.id });
+  }));
+  document.querySelectorAll('.extlink').forEach(n => n.addEventListener('click', e => {
+    e.stopPropagation();
+    vscode.postMessage({ type: 'openExternal', id: e.currentTarget.dataset.id });
   }));
 }
 
@@ -285,7 +313,7 @@ function allOutdated() {
 function updateBtn() {
   const n = checked.size;
   const btn = el('updateBtn');
-  btn.textContent = n > 0 ? 'Seçilenleri Güncelle ('+n+')' : 'Seçilenleri Güncelle';
+  btn.textContent = n > 0 ? 'Update Selected ('+n+')' : 'Update Selected';
   btn.disabled = n === 0;
   const outs = allOutdated();
   el('selAll').checked = outs.length > 0 && outs.every(d => checked.has(d.id));

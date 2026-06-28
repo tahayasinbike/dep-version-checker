@@ -64,7 +64,19 @@ export class DepService {
     const pinned = await this.pins.toggle(id);
     for (const g of this.groups) {
       const live = g.dependencies.find((d) => depId(d) === id);
-      if (live) live.pinned = pinned;
+      if (live) {
+        live.pinned = pinned;
+        live.pinNote = pinned ? this.pins.getNote(id) : undefined;
+      }
+    }
+    this._onDidChange.fire();
+  }
+
+  async setPinNote(id: string, note: string): Promise<void> {
+    await this.pins.setNote(id, note);
+    for (const g of this.groups) {
+      const live = g.dependencies.find((d) => depId(d) === id);
+      if (live) live.pinNote = note || undefined;
     }
     this._onDidChange.fire();
   }
@@ -72,7 +84,11 @@ export class DepService {
   reloadPins(): void {
     this.pins.reload();
     for (const g of this.groups) {
-      for (const d of g.dependencies) d.pinned = this.pins.has(depId(d));
+      for (const d of g.dependencies) {
+        const id = depId(d);
+        d.pinned = this.pins.has(id);
+        d.pinNote = d.pinned ? this.pins.getNote(id) : undefined;
+      }
     }
     this._onDidChange.fire();
   }
@@ -123,6 +139,7 @@ export class DepService {
             versions: [],
             deprecated: [],
             pinned: this.pins.has(`${vscode.workspace.asRelativePath(uri.fsPath)}::${p.section}::${p.name}`),
+            pinNote: this.pins.getNote(`${vscode.workspace.asRelativePath(uri.fsPath)}::${p.section}::${p.name}`),
           };
           const current = p.current;
           if (!current) return base;
@@ -133,7 +150,7 @@ export class DepService {
               info = await provider.fetchVersions(p.name, timeoutMs);
               this.versionCache.set(key, info);
             }
-            if (!info) return { ...base, error: 'sürüm bulunamadı' };
+            if (!info) return { ...base, error: 'version not found' };
             let latest = info.latest;
             if (!cleanVersion(latest)) latest = pickLatest(info.versions, includePre) ?? latest;
             const all = info.versions
@@ -160,7 +177,7 @@ export class DepService {
               deprecated,
             };
           } catch (e: any) {
-            return { ...base, error: e?.message ?? 'hata' };
+            return { ...base, error: e?.message ?? 'error' };
           }
         });
 

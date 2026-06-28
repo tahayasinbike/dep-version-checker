@@ -112,4 +112,8 @@ export const cargoProvider: EcosystemProvider = {
   installCommand() {
     return 'cargo update';
   },
+
+  registryUrl(name) {
+    return `https://crates.io/crates/${name}`;
+  },
 };

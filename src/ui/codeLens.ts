@@ -2,10 +2,11 @@ import * as vscode from 'vscode';
 import { DepService, depId } from '../core/service';
 import { providerForFile } from '../providers/provider';
 
-const TYPE_LABEL: Record<string, string> = {
-  major: 'major',
-  minor: 'minor',
-  patch: 'patch',
+const REGISTRY_LABEL: Record<string, string> = {
+  npm: '↗ npm',
+  pip: '↗ PyPI',
+  cargo: '↗ crates.io',
+  composer: '↗ Packagist',
 };
 
 export class DepCodeLensProvider implements vscode.CodeLensProvider {
@@ -17,32 +18,51 @@ export class DepCodeLensProvider implements vscode.CodeLensProvider {
   }
 
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
-    if (!providerForFile(document.uri.fsPath)) return [];
-    const group = this.service
-      .getGroups()
-      .find((g) => g.manifestPath === document.uri.fsPath);
+    const provider = providerForFile(document.uri.fsPath);
+    if (!provider) return [];
+    const group = this.service.getGroups().find((g) => g.manifestPath === document.uri.fsPath);
     if (!group) return [];
 
     const lenses: vscode.CodeLens[] = [];
     for (const dep of group.dependencies) {
       if (dep.line < 0 || dep.line >= document.lineCount) continue;
-      const outdated = dep.updateType !== 'none' && dep.updateType !== 'unknown';
-      if (!outdated || !dep.latest) continue;
+      if (dep.error || dep.updateType === 'unknown') continue;
       const range = document.lineAt(dep.line).range;
       const id = depId(dep);
+      const registryLens = new vscode.CodeLens(range, {
+        title: REGISTRY_LABEL[provider.id] ?? '↗ page',
+        command: 'depChecker.openHomepage',
+        arguments: [{ id }],
+      });
+
+      if (dep.updateType === 'none') {
+        lenses.push(new vscode.CodeLens(range, { title: 'up to date', command: '' }), registryLens);
+        continue;
+      }
+
       if (dep.pinned) {
+        const noteTitle = dep.pinNote
+          ? `📝 ${dep.pinNote.length > 32 ? dep.pinNote.slice(0, 32) + '…' : dep.pinNote}`
+          : '📝 add note';
         lenses.push(
           new vscode.CodeLens(range, {
-            title: `📌 sabit (kaldır)`,
+            title: '📌 pinned (unpin)',
             command: 'depChecker.togglePin',
             arguments: [{ id }],
-          })
+          }),
+          new vscode.CodeLens(range, {
+            title: noteTitle,
+            command: 'depChecker.editPinNote',
+            arguments: [{ id }],
+          }),
+          registryLens
         );
         continue;
       }
+
       lenses.push(
         new vscode.CodeLens(range, {
-          title: `↑ ${dep.latest} (${TYPE_LABEL[dep.updateType] ?? dep.updateType})`,
+          title: `↑ ${dep.latest} (${dep.updateType})`,
           command: 'depChecker.updateDependency',
           arguments: [{ id, version: dep.latest }],
         })
@@ -50,7 +70,7 @@ export class DepCodeLensProvider implements vscode.CodeLensProvider {
       if (dep.upgradeable.length > 1) {
         lenses.push(
           new vscode.CodeLens(range, {
-            title: 'sürüm seç…',
+            title: 'pick version…',
             command: 'depChecker.updateToVersion',
             arguments: [{ id }],
           })
@@ -58,10 +78,11 @@ export class DepCodeLensProvider implements vscode.CodeLensProvider {
       }
       lenses.push(
         new vscode.CodeLens(range, {
-          title: '📌 sabitle',
+          title: '📌 pin',
           command: 'depChecker.togglePin',
           arguments: [{ id }],
-        })
+        }),
+        registryLens
       );
     }
     return lenses;

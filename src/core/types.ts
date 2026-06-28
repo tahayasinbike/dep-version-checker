@@ -23,6 +23,7 @@ export interface Dependency extends ParsedDep {
   versions: string[];
   deprecated: string[];
   pinned: boolean;
+  pinNote?: string;
   error?: string;
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "dep-version-checker",
   "displayName": "Dependency Version Checker",
-  "description": "Tüm proje türlerinde (npm, pip, Cargo, Composer) bağımlılıkların güncel versiyonlarını gösterir; major/minor/patch ayrımı yapar ve tekil ya da toplu günceller.",
+  "description": "See outdated dependencies across npm, Python, Rust and PHP projects; tells major/minor/patch apart and updates them one by one or in bulk.",
   "version": "0.1.0",
   "publisher": "tahayasinbike",
   "license": "MIT",
@@ -50,7 +50,7 @@
       "depCheckerContainer": [
         {
           "id": "depCheckerView",
-          "name": "Bağımlılıklar",
+          "name": "Dependencies",
           "type": "webview",
           "icon": "resources/dep-icon.svg"
         }
@@ -59,31 +59,31 @@
     "commands": [
       {
         "command": "depChecker.refresh",
-        "title": "Bağımlılıkları Yeniden Tara",
+        "title": "Rescan Dependencies",
         "category": "Dep Checker",
         "icon": "$(refresh)"
       },
       {
         "command": "depChecker.updateAll",
-        "title": "Tümünü Güncelle",
+        "title": "Update All",
         "category": "Dep Checker",
         "icon": "$(arrow-up)"
       },
       {
         "command": "depChecker.updateDependency",
-        "title": "En Son Sürüme Güncelle",
+        "title": "Update to Latest",
         "category": "Dep Checker",
         "icon": "$(cloud-download)"
       },
       {
         "command": "depChecker.updateToVersion",
-        "title": "Sürüm Seçerek Güncelle",
+        "title": "Update to a Specific Version",
         "category": "Dep Checker",
         "icon": "$(versions)"
       },
       {
         "command": "depChecker.openInManifest",
-        "title": "Manifest'te Aç",
+        "title": "Open in Manifest",
         "category": "Dep Checker",
         "icon": "$(go-to-file)"
       }
@@ -103,28 +103,28 @@
         "depChecker.includePrerelease": {
           "type": "boolean",
           "default": false,
-          "description": "Önizleme (alpha/beta/rc) sürümlerini de güncelleme adayı olarak değerlendir."
+          "description": "Also consider pre-release (alpha/beta/rc) versions as update candidates."
         },
         "depChecker.runInstallAfterUpdate": {
           "type": "boolean",
           "default": true,
-          "description": "Güncelleme sonrası ilgili paket yöneticisi kurulum komutunu entegre terminalde çalıştır."
+          "description": "After an update, run the matching package manager install command in the integrated terminal."
         },
         "depChecker.requestTimeoutMs": {
           "type": "number",
           "default": 8000,
-          "description": "Registry isteklerinin zaman aşımı (ms)."
+          "description": "Timeout for registry requests (ms)."
         },
         "depChecker.npmPeerConflictStrategy": {
           "type": "string",
           "enum": ["default", "legacy-peer-deps", "force"],
           "enumDescriptions": [
-            "Ek bayrak yok (varsayılan npm davranışı).",
-            "npm install --legacy-peer-deps (peer dependency çakışmalarını yok say).",
-            "npm install --force (çakışmaları zorla geç, riskli)."
+            "No extra flag (default npm behavior).",
+            "npm install --legacy-peer-deps (ignore peer dependency conflicts).",
+            "npm install --force (force past conflicts, risky)."
           ],
           "default": "default",
-          "description": "npm güncellemesinde peer dependency çakışması yaşandığında install komutuna eklenecek strateji."
+          "description": "Flag appended to the npm install command when a peer dependency conflict occurs during an update."
         }
       }
     }

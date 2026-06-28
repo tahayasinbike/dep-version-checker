@@ -90,4 +90,8 @@ export const composerProvider: EcosystemProvider = {
   installCommand() {
     return 'composer update';
   },
+
+  registryUrl(name) {
+    return `https://packagist.org/packages/${name}`;
+  },
 };
