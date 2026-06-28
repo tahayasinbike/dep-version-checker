@@ -5,6 +5,7 @@
 - When a newer version of the extension itself is available, an **Update Extension** button appears at the top of the panel (updates in place, or opens the extension in the Extensions view); when you're on the latest version it shows an **up to date** indicator.
 - Added an **Open on Open VSX** button to the panel title bar.
 - **Performance & stability:** version and CVE lookups now run in parallel per package (faster scans), scan requests are queued instead of dropped, gutter decorations are debounced while typing, and duplicate packages are fetched only once.
+- Updated the demo GIF in the README.
 
 ## 0.1.4
 
