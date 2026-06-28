@@ -1,0 +1,135 @@
+{
+  "name": "dep-version-checker",
+  "displayName": "Dependency Version Checker",
+  "description": "Tüm proje türlerinde (npm, pip, Cargo, Composer) bağımlılıkların güncel versiyonlarını gösterir; major/minor/patch ayrımı yapar ve tekil ya da toplu günceller.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/package.json",
+    "workspaceContains:**/requirements.txt",
+    "workspaceContains:**/pyproject.toml",
+    "workspaceContains:**/Cargo.toml",
+    "workspaceContains:**/composer.json"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "depCheckerContainer",
+          "title": "Dependencies",
+          "icon": "resources/dep-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "depCheckerContainer": [
+        {
+          "id": "depCheckerView",
+          "name": "Bağımlılıklar",
+          "icon": "resources/dep-icon.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "depCheckerView",
+        "contents": "Çalışma alanında desteklenen bir manifest aranıyor (package.json, requirements.txt, pyproject.toml, Cargo.toml, composer.json).\n[Yeniden Tara](command:depChecker.refresh)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "depChecker.refresh",
+        "title": "Bağımlılıkları Yeniden Tara",
+        "category": "Dep Checker",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "depChecker.updateAll",
+        "title": "Tümünü Güncelle",
+        "category": "Dep Checker",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "depChecker.updateDependency",
+        "title": "En Son Sürüme Güncelle",
+        "category": "Dep Checker",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "depChecker.updateToVersion",
+        "title": "Sürüm Seçerek Güncelle",
+        "category": "Dep Checker",
+        "icon": "$(versions)"
+      },
+      {
+        "command": "depChecker.openInManifest",
+        "title": "Manifest'te Aç",
+        "category": "Dep Checker",
+        "icon": "$(go-to-file)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "depChecker.updateAll",
+          "when": "view == depCheckerView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "depChecker.refresh",
+          "when": "view == depCheckerView",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "depChecker.updateDependency",
+          "when": "view == depCheckerView && viewItem == outdatedDependency",
+          "group": "inline@1"
+        },
+        {
+          "command": "depChecker.updateToVersion",
+          "when": "view == depCheckerView && viewItem == outdatedDependency",
+          "group": "inline@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Dependency Version Checker",
+      "properties": {
+        "depChecker.includePrerelease": {
+          "type": "boolean",
+          "default": false,
+          "description": "Önizleme (alpha/beta/rc) sürümlerini de güncelleme adayı olarak değerlendir."
+        },
+        "depChecker.runInstallAfterUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Güncelleme sonrası ilgili paket yöneticisi kurulum komutunu entegre terminalde çalıştır."
+        },
+        "depChecker.requestTimeoutMs": {
+          "type": "number",
+          "default": 8000,
+          "description": "Registry isteklerinin zaman aşımı (ms)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
