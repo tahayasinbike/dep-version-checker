@@ -3,7 +3,7 @@ import { DepService } from '../core/service';
 import { providerForFile } from '../providers/provider';
 
 const STATUS: Record<string, string> = {
-  major: '❗',
+  major: '⚠️',
   minor: '🟢',
   patch: '🔵',
   none: '✅',
@@ -62,7 +62,7 @@ export class DepDecorations {
         renderOptions: {
           after: {
             contentText: ' ' + symbol,
-            textDecoration: 'none; font-size: 1.6em; vertical-align: -18%',
+            textDecoration: 'none; font-size: 1.2em; vertical-align: -12%',
           },
         },
       });
