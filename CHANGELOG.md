@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Updated the demo GIF in the README.
+
 ## 0.1.2
 
 - Demo GIF added to the README (rendered on the marketplace via the public repository).
