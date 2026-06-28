@@ -33,16 +33,11 @@
         {
           "id": "depCheckerView",
           "name": "Bağımlılıklar",
+          "type": "webview",
           "icon": "resources/dep-icon.svg"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "depCheckerView",
-        "contents": "Çalışma alanında desteklenen bir manifest aranıyor (package.json, requirements.txt, pyproject.toml, Cargo.toml, composer.json).\n[Yeniden Tara](command:depChecker.refresh)"
-      }
-    ],
     "commands": [
       {
         "command": "depChecker.refresh",
@@ -78,26 +73,9 @@
     "menus": {
       "view/title": [
         {
-          "command": "depChecker.updateAll",
-          "when": "view == depCheckerView",
-          "group": "navigation@1"
-        },
-        {
           "command": "depChecker.refresh",
           "when": "view == depCheckerView",
-          "group": "navigation@2"
-        }
-      ],
-      "view/item/context": [
-        {
-          "command": "depChecker.updateDependency",
-          "when": "view == depCheckerView && viewItem == outdatedDependency",
-          "group": "inline@1"
-        },
-        {
-          "command": "depChecker.updateToVersion",
-          "when": "view == depCheckerView && viewItem == outdatedDependency",
-          "group": "inline@2"
+          "group": "navigation@1"
         }
       ]
     },
@@ -118,6 +96,17 @@
           "type": "number",
           "default": 8000,
           "description": "Registry isteklerinin zaman aşımı (ms)."
+        },
+        "depChecker.npmPeerConflictStrategy": {
+          "type": "string",
+          "enum": ["default", "legacy-peer-deps", "force"],
+          "enumDescriptions": [
+            "Ek bayrak yok (varsayılan npm davranışı).",
+            "npm install --legacy-peer-deps (peer dependency çakışmalarını yok say).",
+            "npm install --force (çakışmaları zorla geç, riskli)."
+          ],
+          "default": "default",
+          "description": "npm güncellemesinde peer dependency çakışması yaşandığında install komutuna eklenecek strateji."
         }
       }
     }

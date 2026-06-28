@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ParsedDep, VersionInfo } from '../core/types';
 import { fetchJson } from '../core/http';
-import { cleanVersion } from '../core/semver';
+import { cleanVersion, resolveCurrent } from '../core/semver';
 import { escapeRegExp, rangePrefix } from '../core/util';
 import { EcosystemProvider } from './provider';
 
@@ -54,7 +54,7 @@ export const composerProvider: EcosystemProvider = {
         result.push({
           name,
           declared,
-          current: locks.get(name) ?? cleanVersion(declared),
+          current: resolveCurrent(locks.get(name), declared),
           section,
           line,
         });
@@ -70,7 +70,8 @@ export const composerProvider: EcosystemProvider = {
       .map((r: any) => String(r.version).replace(/^v/, ''))
       .filter((v: string) => !!cleanVersion(v));
     if (versions.length === 0) return undefined;
-    return { latest: versions[0], versions } as VersionInfo;
+    const stable = versions.find((v: string) => !v.includes('-'));
+    return { latest: stable ?? versions[0], versions } as VersionInfo;
   },
 
   rewrite(content, dep, newVersion) {

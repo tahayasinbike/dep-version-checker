@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ParsedDep, VersionInfo } from '../core/types';
 import { fetchJson } from '../core/http';
-import { cleanVersion } from '../core/semver';
+import { resolveCurrent } from '../core/semver';
 import { escapeRegExp } from '../core/util';
 import { EcosystemProvider } from './provider';
 
@@ -65,7 +65,7 @@ export const cargoProvider: EcosystemProvider = {
           result.push({
             name,
             declared: vm[1],
-            current: locks.get(name) ?? cleanVersion(vm[1]),
+            current: resolveCurrent(locks.get(name), vm[1]),
             section: 'dependencies',
             line: idx,
           });
@@ -80,7 +80,7 @@ export const cargoProvider: EcosystemProvider = {
         result.push({
           name: m[1],
           declared: m[2],
-          current: locks.get(m[1]) ?? cleanVersion(m[2]),
+          current: resolveCurrent(locks.get(m[1]), m[2]),
           section: section!,
           line: idx,
         });

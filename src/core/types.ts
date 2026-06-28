@@ -11,6 +11,7 @@ export interface ParsedDep {
 export interface VersionInfo {
   latest: string;
   versions: string[];
+  deprecated?: string[];
 }
 
 export interface Dependency extends ParsedDep {
@@ -19,6 +20,8 @@ export interface Dependency extends ParsedDep {
   latest?: string;
   updateType: UpdateType;
   upgradeable: string[];
+  versions: string[];
+  deprecated: string[];
   error?: string;
 }
 

@@ -7,12 +7,11 @@ import { npmProvider } from './providers/npm';
 import { pipProvider } from './providers/pip';
 import { cargoProvider } from './providers/cargo';
 import { composerProvider } from './providers/composer';
-import { DepTreeProvider, DepItem } from './ui/treeView';
+import { DepWebviewProvider } from './ui/webview';
 import { DepCodeLensProvider } from './ui/codeLens';
 
 function argDep(arg: any): Dependency | undefined {
-  if (arg instanceof DepItem) return arg.dep;
-  return undefined;
+  return arg?.dep;
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -22,11 +21,11 @@ export function activate(context: vscode.ExtensionContext) {
   registerProvider(composerProvider);
 
   const service = new DepService();
-  const tree = new DepTreeProvider(service);
+  const webview = new DepWebviewProvider(context.extensionUri, service);
   const codeLens = new DepCodeLensProvider(service);
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('depCheckerView', tree),
+    vscode.window.registerWebviewViewProvider('depCheckerView', webview),
     vscode.languages.registerCodeLensProvider(
       [
         { scheme: 'file', pattern: '**/package.json' },
@@ -61,7 +60,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand('depChecker.updateDependency', async (arg) => {
-      const id = arg instanceof DepItem ? arg.id : arg?.id;
+      const id = arg?.id;
       if (!id) return;
       const found = service.findDependency(id);
       if (!found?.dep.latest) return;
@@ -73,7 +72,7 @@ export function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand('depChecker.updateToVersion', async (arg) => {
-      const id = arg instanceof DepItem ? arg.id : arg?.id;
+      const id = arg?.id;
       if (!id) return;
       const found = service.findDependency(id);
       if (!found) return;
@@ -126,11 +125,22 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   let timer: NodeJS.Timeout | undefined;
+  const debouncedRefresh = (delay: number) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(refresh, delay);
+  };
+
+  const lockWatcher = vscode.workspace.createFileSystemWatcher(
+    '**/{package-lock.json,pnpm-lock.yaml,yarn.lock,bun.lockb,bun.lock,Cargo.lock,composer.lock}'
+  );
+  lockWatcher.onDidChange(() => debouncedRefresh(800));
+  lockWatcher.onDidCreate(() => debouncedRefresh(800));
+
   context.subscriptions.push(
+    lockWatcher,
     vscode.workspace.onDidSaveTextDocument((doc) => {
       if (/(package|composer)\.json$|Cargo\.toml$|pyproject\.toml$|requirements.*\.txt$/.test(doc.fileName)) {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(refresh, 600);
+        debouncedRefresh(600);
       }
     })
   );

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ParsedDep, VersionInfo } from '../core/types';
 import { fetchJson } from '../core/http';
-import { cleanVersion } from '../core/semver';
+import { resolveCurrent } from '../core/semver';
 import { escapeRegExp, rangePrefix } from '../core/util';
 import { EcosystemProvider } from './provider';
 
@@ -64,8 +64,8 @@ export const npmProvider: EcosystemProvider = {
       for (const name of Object.keys(deps)) {
         const declared = String(deps[name]);
         if (/^(workspace:|file:|link:|git\+|https?:|github:)/.test(declared)) continue;
-        const current =
-          installedVersion(manifestDir, name) ?? lockVersion(lock, name) ?? cleanVersion(declared);
+        const installed = installedVersion(manifestDir, name) ?? lockVersion(lock, name);
+        const current = resolveCurrent(installed, declared);
         const line = lines.findIndex((l) =>
           new RegExp(`"${escapeRegExp(name)}"\\s*:`).test(l)
         );
@@ -77,10 +77,12 @@ export const npmProvider: EcosystemProvider = {
 
   async fetchVersions(name, timeoutMs) {
     const data = await fetchJson<any>(`https://registry.npmjs.org/${name}`, { timeoutMs });
-    const versions = Object.keys(data.versions ?? {});
+    const versionsObj = data.versions ?? {};
+    const versions = Object.keys(versionsObj);
     if (versions.length === 0) return undefined;
     const latest = data['dist-tags']?.latest ?? versions[versions.length - 1];
-    return { latest, versions } as VersionInfo;
+    const deprecated = versions.filter((v) => versionsObj[v]?.deprecated);
+    return { latest, versions, deprecated } as VersionInfo;
   },
 
   rewrite(content, dep, newVersion) {
@@ -96,7 +98,12 @@ export const npmProvider: EcosystemProvider = {
     return lines.join('\n');
   },
 
-  installCommand() {
+  installCommand(manifestPath) {
+    const dir = path.dirname(manifestPath);
+    if (fs.existsSync(path.join(dir, 'pnpm-lock.yaml'))) return 'pnpm install';
+    if (fs.existsSync(path.join(dir, 'yarn.lock'))) return 'yarn install';
+    if (fs.existsSync(path.join(dir, 'bun.lockb')) || fs.existsSync(path.join(dir, 'bun.lock')))
+      return 'bun install';
     return 'npm install';
   },
 };

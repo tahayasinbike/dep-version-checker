@@ -65,6 +65,51 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+export function satisfies(version: string, range: string): boolean {
+  const v = parseVersion(version);
+  if (!v) return true;
+  const r = (range ?? '').trim();
+  if (!r || r === '*' || r.toLowerCase() === 'x' || r === 'latest') return true;
+  if (/\s|\|\|/.test(r)) return true;
+  const m = r.match(/^(\^|~|>=|<=|>|<|=)?\s*(.+)$/);
+  if (!m) return true;
+  const op = m[1] ?? '=';
+  const target = m[2];
+  const t = parseVersion(target);
+  if (!t) return true;
+  const cmp = compareVersions(version, cleanVersion(target));
+  switch (op) {
+    case '=':
+      return cmp === 0;
+    case '>':
+      return cmp > 0;
+    case '<':
+      return cmp < 0;
+    case '>=':
+      return cmp >= 0;
+    case '<=':
+      return cmp <= 0;
+    case '^':
+      if (cmp < 0) return false;
+      if (t.major > 0) return v.major === t.major;
+      if (t.minor > 0) return v.major === 0 && v.minor === t.minor;
+      return v.major === 0 && v.minor === 0 && v.patch === t.patch;
+    case '~': {
+      if (cmp < 0) return false;
+      const segs = target.trim().split('.');
+      if (segs.length >= 2) return v.major === t.major && v.minor === t.minor;
+      return v.major === t.major;
+    }
+  }
+  return true;
+}
+
+export function resolveCurrent(installed: string | undefined, declared: string): string {
+  const declaredClean = cleanVersion(declared);
+  if (installed && satisfies(installed, declared)) return installed;
+  return declaredClean || installed || '';
+}
+
 export function classifyUpdate(current: string, latest: string): UpdateType {
   const c = parseVersion(current);
   const l = parseVersion(latest);
