@@ -9,10 +9,10 @@ function nonce(): string {
 
 export class DepWebviewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
-  private extUpdate: string | undefined;
+  private extStatus: { state: 'update' | 'current'; version: string } | undefined;
 
-  setExtUpdate(version: string | undefined): void {
-    this.extUpdate = version;
+  setExtStatus(state: 'update' | 'current', version: string): void {
+    this.extStatus = { state, version };
     this.postData();
   }
 
@@ -98,7 +98,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
       type: 'data',
       scanning: this.service.scanning,
       groups,
-      extUpdate: this.extUpdate ?? null,
+      extStatus: this.extStatus ?? null,
     });
   }
 
@@ -126,6 +126,7 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
 .primary:disabled { opacity: .45; cursor: default; }
 .extbtn { width: 100%; display: flex; align-items: center; gap: 8px; justify-content: center; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; padding: 7px 10px; cursor: pointer; font-weight: 600; }
 .extbtn:hover { background: var(--vscode-button-hoverBackground); }
+.extok { text-align: center; font-size: 11px; padding: 3px; opacity: .65; color: var(--vscode-charts-green, #46c878); }
 .ghost { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
 .ghost:hover { background: var(--vscode-button-secondaryHoverBackground); }
 .selrow { display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: .85; }
@@ -222,9 +223,12 @@ function visibleDeps(g){ return g.dependencies.filter(d => !filter || d.name.toL
 
 function renderBanner() {
   const b = el('extbanner');
-  if (state.extUpdate) {
-    b.innerHTML = '<button id="extupd" class="extbtn">⬆ Update available — v'+esc(state.extUpdate)+' · Update Extension</button>';
+  const s = state.extStatus;
+  if (s && s.state === 'update') {
+    b.innerHTML = '<button id="extupd" class="extbtn">⬆ Update available — v'+esc(s.version)+' · Update Extension</button>';
     el('extupd').addEventListener('click', () => vscode.postMessage({ type: 'updateExt' }));
+  } else if (s && s.state === 'current') {
+    b.innerHTML = '<div class="extok">✓ Extension up to date · v'+esc(s.version)+'</div>';
   } else {
     b.innerHTML = '';
   }

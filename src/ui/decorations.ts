@@ -12,6 +12,7 @@ const STATUS_FILE: Record<string, string> = {
 export class DepDecorations {
   private readonly types: Record<string, vscode.TextEditorDecorationType> = {};
   private readonly disposables: vscode.Disposable[] = [];
+  private editTimer: NodeJS.Timeout | undefined;
 
   constructor(extensionUri: vscode.Uri, private readonly service: DepService) {
     for (const [status, file] of Object.entries(STATUS_FILE)) {
@@ -28,7 +29,9 @@ export class DepDecorations {
       vscode.window.onDidChangeVisibleTextEditors(() => this.refreshAll()),
       vscode.workspace.onDidChangeTextDocument((e) => {
         const active = vscode.window.activeTextEditor;
-        if (active && e.document === active.document) this.refreshAll();
+        if (!active || e.document !== active.document) return;
+        if (this.editTimer) clearTimeout(this.editTimer);
+        this.editTimer = setTimeout(() => this.apply(active), 250);
       })
     );
     this.refreshAll();

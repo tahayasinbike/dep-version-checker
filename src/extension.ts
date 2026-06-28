@@ -280,8 +280,9 @@ export function activate(context: vscode.ExtensionContext) {
       const [publisher, name] = context.extension.id.split('.');
       const current = context.extension.packageJSON.version as string;
       const data = await fetchJson<any>(`https://open-vsx.org/api/${publisher}/${name}`, { timeoutMs: 8000 });
-      if (data?.version && compareVersions(data.version, current) > 0) {
-        webview.setExtUpdate(data.version);
+      if (data?.version) {
+        if (compareVersions(data.version, current) > 0) webview.setExtStatus('update', data.version);
+        else webview.setExtStatus('current', current);
       }
     } catch {
       return;

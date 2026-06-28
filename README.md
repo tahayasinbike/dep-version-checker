@@ -12,8 +12,6 @@
 
 ![Dependency Version Checker in action](https://github.com/tahayasinbike/dep-version-checker/raw/HEAD/resources/demo.gif)
 
-![Inline CodeLens with gutter status icons](https://github.com/tahayasinbike/dep-version-checker/raw/HEAD/resources/codelens.png)
-
 </div>
 
 ## Features

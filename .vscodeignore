@@ -6,4 +6,3 @@ tsconfig.json
 **/*.map
 **/*.ts
 node_modules/**
-resources/codelens.png

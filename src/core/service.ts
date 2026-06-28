@@ -51,8 +51,21 @@ export class DepService {
   private readonly _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChange = this._onDidChange.event;
   scanning = false;
+  private rescanQueued = false;
 
   constructor(private readonly pins: PinStore) {}
+
+  private async cachedVersions(
+    provider: EcosystemProvider,
+    name: string,
+    timeoutMs: number
+  ): Promise<VersionInfo | undefined> {
+    const key = `${provider.id}:${name}`;
+    if (this.versionCache.has(key)) return this.versionCache.get(key);
+    const info = await provider.fetchVersions(name, timeoutMs);
+    this.versionCache.set(key, info);
+    return info;
+  }
 
   getGroups(): ManifestGroup[] {
     return this.groups;
@@ -108,7 +121,10 @@ export class DepService {
   }
 
   async scan(): Promise<void> {
-    if (this.scanning) return;
+    if (this.scanning) {
+      this.rescanQueued = true;
+      return;
+    }
     this.scanning = true;
     this._onDidChange.fire();
     try {
@@ -148,12 +164,10 @@ export class DepService {
           const current = p.current;
           if (!current) return base;
           try {
-            const key = `${provider.id}:${p.name}`;
-            let info = this.versionCache.get(key);
-            if (info === undefined && !this.versionCache.has(key)) {
-              info = await provider.fetchVersions(p.name, timeoutMs);
-              this.versionCache.set(key, info);
-            }
+            const [info, raws] = await Promise.all([
+              this.cachedVersions(provider, p.name, timeoutMs),
+              this.packageVulns(provider.osvEcosystem, p.name, timeoutMs),
+            ]);
             if (!info) return { ...base, error: 'version not found' };
             let latest = info.latest;
             if (!cleanVersion(latest)) latest = pickLatest(info.versions, includePre) ?? latest;
@@ -174,7 +188,6 @@ export class DepService {
             }
             let vulns: string[] = [];
             const vulnVersions: Record<string, string[]> = {};
-            const raws = await this.packageVulns(provider.osvEcosystem, p.name, timeoutMs);
             if (raws.length) {
               vulns = raws.filter((r) => affectsVersion(current, r)).map((r) => r.id);
               for (const v of versionsDesc) {
@@ -216,6 +229,10 @@ export class DepService {
     } finally {
       this.scanning = false;
       this._onDidChange.fire();
+      if (this.rescanQueued) {
+        this.rescanQueued = false;
+        void this.scan();
+      }
     }
   }
 
