@@ -11,6 +11,7 @@ import { composerProvider } from './providers/composer';
 import { DepWebviewProvider } from './ui/webview';
 import { DepCodeLensProvider } from './ui/codeLens';
 import { DepDecorations } from './ui/decorations';
+import { fetchJson } from './core/http';
 
 function argDep(arg: any): Dependency | undefined {
   return arg?.dep;
@@ -111,6 +112,29 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('depChecker.refresh', refresh),
+
+    vscode.commands.registerCommand('depChecker.openExtensionPage', () => {
+      const [publisher, name] = context.extension.id.split('.');
+      vscode.env.openExternal(vscode.Uri.parse(`https://open-vsx.org/extension/${publisher}/${name}`));
+    }),
+
+    vscode.commands.registerCommand('depChecker.updateExtension', async () => {
+      const id = context.extension.id;
+      try {
+        await vscode.commands.executeCommand('workbench.extensions.installExtension', id);
+        const r = await vscode.window.showInformationMessage(
+          'Dependency Version Checker updated — reload to apply.',
+          'Reload'
+        );
+        if (r === 'Reload') vscode.commands.executeCommand('workbench.action.reloadWindow');
+      } catch {
+        try {
+          await vscode.commands.executeCommand('extension.open', id);
+        } catch {
+          await vscode.commands.executeCommand('workbench.extensions.search', id);
+        }
+      }
+    }),
 
     vscode.commands.registerCommand('depChecker.applyUpdates', (items) =>
       applyUpdates(Array.isArray(items) ? items : [])
@@ -250,6 +274,19 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   refresh();
+
+  void (async () => {
+    try {
+      const [publisher, name] = context.extension.id.split('.');
+      const current = context.extension.packageJSON.version as string;
+      const data = await fetchJson<any>(`https://open-vsx.org/api/${publisher}/${name}`, { timeoutMs: 8000 });
+      if (data?.version && compareVersions(data.version, current) > 0) {
+        webview.setExtUpdate(data.version);
+      }
+    } catch {
+      return;
+    }
+  })();
 }
 
 export function deactivate() {}

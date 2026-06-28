@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- When a newer version of the extension itself is available, an **Update Extension** button appears at the top of the panel (updates in place, or opens the extension in the Extensions view).
+- Added an **Open on Open VSX** button to the panel title bar.
+
 ## 0.1.4
 
 - **Security advisory (CVE) checks** via OSV.dev:

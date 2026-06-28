@@ -9,6 +9,12 @@ function nonce(): string {
 
 export class DepWebviewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
+  private extUpdate: string | undefined;
+
+  setExtUpdate(version: string | undefined): void {
+    this.extUpdate = version;
+    this.postData();
+  }
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -43,6 +49,9 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
         break;
       case 'pinNote':
         if (msg.id) vscode.commands.executeCommand('depChecker.editPinNote', { id: msg.id });
+        break;
+      case 'updateExt':
+        vscode.commands.executeCommand('depChecker.updateExtension');
         break;
       case 'open':
         if (msg.id) {
@@ -85,7 +94,12 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
             : [],
       })),
     }));
-    this.view.webview.postMessage({ type: 'data', scanning: this.service.scanning, groups });
+    this.view.webview.postMessage({
+      type: 'data',
+      scanning: this.service.scanning,
+      groups,
+      extUpdate: this.extUpdate ?? null,
+    });
   }
 
   private html(webview: vscode.Webview): string {
@@ -110,6 +124,8 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
 .primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
 .primary:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
 .primary:disabled { opacity: .45; cursor: default; }
+.extbtn { width: 100%; display: flex; align-items: center; gap: 8px; justify-content: center; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; padding: 7px 10px; cursor: pointer; font-weight: 600; }
+.extbtn:hover { background: var(--vscode-button-hoverBackground); }
 .ghost { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
 .ghost:hover { background: var(--vscode-button-secondaryHoverBackground); }
 .selrow { display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: .85; }
@@ -160,6 +176,7 @@ input[type=checkbox] { cursor: pointer; accent-color: var(--vscode-button-backgr
 </head>
 <body>
 <div class="toolbar">
+  <div id="extbanner"></div>
   <div class="row1">
     <input id="search" class="search" placeholder="Search package…" />
     <button id="refresh" class="ghost" title="Rescan">⟳</button>
@@ -203,7 +220,18 @@ function isOutdated(d){ return d.options && d.options.length > 0 && !d.error; }
 function selectable(d){ return isOutdated(d) && !d.pinned; }
 function visibleDeps(g){ return g.dependencies.filter(d => !filter || d.name.toLowerCase().includes(filter)); }
 
+function renderBanner() {
+  const b = el('extbanner');
+  if (state.extUpdate) {
+    b.innerHTML = '<button id="extupd" class="extbtn">⬆ Update available — v'+esc(state.extUpdate)+' · Update Extension</button>';
+    el('extupd').addEventListener('click', () => vscode.postMessage({ type: 'updateExt' }));
+  } else {
+    b.innerHTML = '';
+  }
+}
+
 function render() {
+  renderBanner();
   const c = el('content');
   if (state.scanning && state.groups.length === 0) {
     c.innerHTML = '<div class="empty"><span class="spinner"></span><span>Scanning…</span></div>';
