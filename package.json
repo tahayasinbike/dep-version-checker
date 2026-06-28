@@ -2,7 +2,7 @@
   "name": "dep-version-checker",
   "displayName": "Dependency Version Checker",
   "description": "See outdated dependencies across npm, Python, Rust and PHP projects; tells major/minor/patch apart and updates them one by one or in bulk.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "tahayasinbike",
   "license": "MIT",
   "icon": "resources/icon.png",
@@ -117,7 +117,11 @@
         },
         "depChecker.npmPeerConflictStrategy": {
           "type": "string",
-          "enum": ["default", "legacy-peer-deps", "force"],
+          "enum": [
+            "default",
+            "legacy-peer-deps",
+            "force"
+          ],
           "enumDescriptions": [
             "No extra flag (default npm behavior).",
             "npm install --legacy-peer-deps (ignore peer dependency conflicts).",
