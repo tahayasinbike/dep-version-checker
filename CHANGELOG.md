@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- **Security advisory (CVE) checks** via OSV.dev:
+  - Installed packages with known vulnerabilities are flagged in the panel (⚠ with count + IDs) and in CodeLens.
+  - Before an update, the **target version** is checked for known vulnerabilities; if any exist you're warned (with CVE id, severity and the first fixed version) and can cancel.
+  - Works across npm, PyPI, crates.io and Packagist.
+
 ## 0.1.3
 
 - Updated the demo GIF in the README.

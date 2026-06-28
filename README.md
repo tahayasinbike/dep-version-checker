@@ -26,6 +26,7 @@ Keeping dependencies up to date is tedious and risky: which package is outdated?
 - 🌈 **Color-coded risk** — every update is marked `major` (red), `minor` (green), or `patch` (blue).
 - ☑️ **Bulk or one-by-one** — tick a checkbox, pick any version from the dropdown, update in one click.
 - 🛡️ **Peer-dependency protection** — catches incompatibilities before a bulk update and offers an automatic fix.
+- 🔐 **Security (CVE) checks** — flags installed packages with known vulnerabilities and warns you before updating *into* a vulnerable version (powered by OSV.dev).
 - 📌 **Version pinning with notes** — lock sensitive packages, document *why* with a note, and share both across your team via git.
 - 🔗 **Jump to the registry** — open any package's npm / PyPI / crates.io / Packagist page to read its docs in one click.
 
@@ -106,6 +107,9 @@ The dropdown doesn't only list upgrades — it also lists **versions below the c
 
 ### 🔗 Open the package's registry page
 Click the ↗ link next to a package (panel or CodeLens) to jump straight to its **npm / PyPI / crates.io / Packagist** page — perfect for a quick look at the docs, changelog, or repository.
+
+### 🔐 Security advisory (CVE) checks
+Powered by the free [OSV.dev](https://osv.dev) database. Installed packages with known vulnerabilities are flagged in the panel with a red **⚠** (count + advisory IDs on hover) and in CodeLens. And before you update *into* a version, its target is checked — if it has known advisories you're warned with the **CVE id, severity, and the first fixed version**, and can cancel. Covers npm, PyPI, crates.io and Packagist.
 
 ### 🛡️ Peer-dependency conflict check
 Before a bulk update, the **peer requirements** of your chosen target versions are fetched from the registry and compared against the rest of your project. If there's a conflict, you're warned *before* anything is applied:

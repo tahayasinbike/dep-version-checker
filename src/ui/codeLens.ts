@@ -35,6 +35,16 @@ export class DepCodeLensProvider implements vscode.CodeLensProvider {
         arguments: [{ id }],
       });
 
+      if (dep.vulns.length) {
+        lenses.push(
+          new vscode.CodeLens(range, {
+            title: `⚠ ${dep.vulns.length} security advisory`,
+            command: 'depChecker.openHomepage',
+            arguments: [{ id }],
+          })
+        );
+      }
+
       if (dep.updateType === 'none') {
         lenses.push(new vscode.CodeLens(range, { title: 'up to date', command: '' }), registryLens);
         continue;

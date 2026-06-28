@@ -10,6 +10,7 @@ export interface EcosystemProvider {
   rewrite(content: string, dep: ParsedDep, newVersion: string): string;
   installCommand(manifestPath: string): string;
   registryUrl(name: string): string;
+  osvEcosystem?: string;
   peerDependencies?(name: string, version: string, timeoutMs: number): Promise<Record<string, string>>;
 }
 

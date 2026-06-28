@@ -37,6 +37,7 @@ function isDepSection(section: string | undefined): { active: boolean; tableName
 export const cargoProvider: EcosystemProvider = {
   id: 'cargo',
   label: 'Rust',
+  osvEcosystem: 'crates.io',
   manifestFileNames: ['Cargo.toml'],
 
   matches(filePath) {

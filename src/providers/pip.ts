@@ -74,6 +74,7 @@ function parsePyproject(content: string): ParsedDep[] {
 export const pipProvider: EcosystemProvider = {
   id: 'pip',
   label: 'Python',
+  osvEcosystem: 'PyPI',
   manifestFileNames: ['requirements.txt', 'pyproject.toml'],
 
   matches(filePath) {

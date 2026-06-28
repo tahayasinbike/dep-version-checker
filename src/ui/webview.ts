@@ -74,6 +74,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
         error: d.error ?? null,
         pinned: d.pinned,
         pinNote: d.pinNote ?? null,
+        vulns: d.vulns,
         options:
           d.current && d.upgradeable.length
             ? d.versions.map((v) => {
@@ -125,6 +126,7 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
 .name:hover { text-decoration: underline; }
 .extlink { margin-left: 6px; cursor: pointer; opacity: .4; font-size: 11px; user-select: none; }
 .extlink:hover { opacity: 1; color: var(--vscode-textLink-foreground); }
+.vuln { margin-left: 6px; font-size: 10px; font-weight: 600; color: #f25555; cursor: help; }
 .sub { font-size: 11px; opacity: .75; }
 .c-cur { font-size: 12px; opacity: .65; text-align: right; white-space: nowrap; }
 .c-cur .arrow { opacity: .45; margin-left: 5px; }
@@ -229,6 +231,7 @@ function render() {
         html += '<div>'+(out && !d.pinned ? '<input type="checkbox" class="dsel" data-id="'+esc(d.id)+'" '+(checked.has(d.id)?'checked':'')+'>':'')+'</div>';
         html += '<div><span class="name" data-id="'+esc(d.id)+'">'+esc(d.name)+'</span>'
           + '<span class="extlink" data-id="'+esc(d.id)+'" title="Open the package registry page">↗</span>'
+          + (d.vulns && d.vulns.length ? '<span class="vuln" title="'+esc(d.vulns.length+' known vulnerability(ies) in '+d.current+': '+d.vulns.join(', '))+'">⚠ '+d.vulns.length+'</span>' : '')
           + (d.error? '<div class="sub">'+esc(d.error)+'</div>':'')+'</div>';
         html += '<div class="c-cur">'+esc(d.current)+(out?'<span class="arrow">→</span>':'')+'</div>';
         if (out) {

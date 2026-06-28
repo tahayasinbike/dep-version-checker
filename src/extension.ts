@@ -84,6 +84,22 @@ export function activate(context: vscode.ExtensionContext) {
         finalItems = [...merged].map(([id, version]) => ({ id, version }));
       }
     }
+    const vulnHits = await service.findTargetVulns(finalItems);
+    if (vulnHits.length) {
+      const lines = vulnHits.slice(0, 8).flatMap((h) => {
+        const top = h.vulns.slice(0, 3).map(
+          (x) => `   – ${x.id}${x.severity ? ` [${x.severity}]` : ''}${x.fixed ? ` → fixed in ${x.fixed}` : ''}`
+        );
+        const extra = h.vulns.length > 3 ? [`   …and ${h.vulns.length - 3} more`] : [];
+        return [`• ${h.name}@${h.version} (${h.vulns.length} advisory/-ies)`, ...top, ...extra];
+      });
+      const choice = await vscode.window.showWarningMessage(
+        `⚠ Security advisories found for the target version(s):\n\n${lines.join('\n')}`,
+        { modal: true, detail: 'These versions have known vulnerabilities (source: OSV.dev). Update anyway?' },
+        'Update anyway'
+      );
+      if (choice !== 'Update anyway') return;
+    }
     await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: `Updating ${finalItems.length} package(s)` },
       async () => {

@@ -35,6 +35,7 @@ export const npmProvider: EcosystemProvider = {
   id: 'npm',
   label: 'npm',
   manifestFileNames: ['package.json'],
+  osvEcosystem: 'npm',
 
   matches(filePath) {
     return path.basename(filePath) === 'package.json';

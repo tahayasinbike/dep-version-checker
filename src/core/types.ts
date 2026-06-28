@@ -24,6 +24,7 @@ export interface Dependency extends ParsedDep {
   deprecated: string[];
   pinned: boolean;
   pinNote?: string;
+  vulns: string[];
   error?: string;
 }
 

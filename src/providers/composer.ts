@@ -28,6 +28,7 @@ function lockVersions(manifestDir: string): Map<string, string> {
 export const composerProvider: EcosystemProvider = {
   id: 'composer',
   label: 'PHP',
+  osvEcosystem: 'Packagist',
   manifestFileNames: ['composer.json'],
 
   matches(filePath) {
