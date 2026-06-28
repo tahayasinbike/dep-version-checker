@@ -4,9 +4,11 @@
 
 ### See outdated dependencies, check them for CVEs, and update with confidence — across npm, Python, Rust & PHP.
 
-![Open VSX Version](https://img.shields.io/open-vsx/v/tahayasinbike/dep-version-checker?color=2ea043&label=Open%20VSX&style=for-the-badge)
-![Open VSX Downloads](https://img.shields.io/open-vsx/dt/tahayasinbike/dep-version-checker?color=8b7bd8&style=for-the-badge)
+[![Open VSX Version](https://img.shields.io/open-vsx/v/tahayasinbike/dep-version-checker?color=2ea043&label=Open%20VSX&style=for-the-badge)](https://open-vsx.org/extension/tahayasinbike/dep-version-checker)
+[![Open VSX Downloads](https://img.shields.io/open-vsx/dt/tahayasinbike/dep-version-checker?color=8b7bd8&style=for-the-badge)](https://open-vsx.org/extension/tahayasinbike/dep-version-checker)
 ![License](https://img.shields.io/badge/license-MIT-4d8de0?style=for-the-badge)
+
+**[➜ Open in the Open VSX Registry](https://open-vsx.org/extension/tahayasinbike/dep-version-checker)**
 
 ![Dependency Version Checker in action](https://github.com/tahayasinbike/dep-version-checker/raw/HEAD/resources/demo.gif)
 
