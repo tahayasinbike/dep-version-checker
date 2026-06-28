@@ -3,7 +3,7 @@
   "displayName": "Dependency Version Checker",
   "description": "Tüm proje türlerinde (npm, pip, Cargo, Composer) bağımlılıkların güncel versiyonlarını gösterir; major/minor/patch ayrımı yapar ve tekil ya da toplu günceller.",
   "version": "0.1.0",
-  "publisher": "your-publisher-id",
+  "publisher": "tahayasinbike",
   "license": "MIT",
   "icon": "resources/icon.png",
   "engines": {
@@ -28,14 +28,6 @@
     "color": "#171327",
     "theme": "dark"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/KULLANICI_ADIN/dep-version-checker"
-  },
-  "bugs": {
-    "url": "https://github.com/KULLANICI_ADIN/dep-version-checker/issues"
-  },
-  "homepage": "https://github.com/KULLANICI_ADIN/dep-version-checker#readme",
   "main": "./out/extension.js",
   "activationEvents": [
     "workspaceContains:**/package.json",
@@ -141,7 +133,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
-    "package": "npx --yes @vscode/vsce package",
+    "package": "npx --yes @vscode/vsce package --allow-missing-repository",
     "publish": "npx --yes @vscode/vsce publish",
     "publish:ovsx": "npx --yes ovsx publish"
   },
