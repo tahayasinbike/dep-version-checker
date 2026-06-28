@@ -80,7 +80,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
             ? d.versions.map((v) => {
                 const cmp = compareVersions(v, d.current!);
                 const kind = cmp === 0 ? 'current' : cmp < 0 ? 'down' : classifyUpdate(d.current!, v);
-                return { version: v, kind, deprecated: d.deprecated.includes(v) };
+                return { version: v, kind, deprecated: d.deprecated.includes(v), cve: d.vulnVersions[v]?.length ?? 0 };
               })
             : [],
       })),
@@ -147,7 +147,9 @@ select { width: 100%; background: var(--vscode-dropdown-background); color: var(
 .none  { background: rgba(70,200,120,.16); color: #46c878; }
 .down  { background: rgba(150,150,150,.18); color: #9aa0a6; }
 .dep   { background: rgba(255,140,40,.2); color: #ff9d3c; }
+.cve   { background: rgba(244,71,71,.2); color: #f25555; }
 .unknown { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+option.opt-cve { color: #f25555; }
 option.opt-dep { color: #ff9d3c; }
 option.opt-down { color: #9aa0a6; }
 input[type=checkbox] { cursor: pointer; accent-color: var(--vscode-button-background); }
@@ -187,9 +189,10 @@ let filter = '';
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const KIND = {major:'major',minor:'minor',patch:'patch',current:'current',down:'down'};
-function optLabel(o){ const k = KIND[o.kind]||o.kind; return o.version+' ('+k+(o.deprecated?', deprecated':'')+')'; }
+function optLabel(o){ const k = KIND[o.kind]||o.kind; const tags=[k]; if(o.deprecated)tags.push('deprecated'); if(o.cve)tags.push(o.cve+' CVE'); return o.version+' ('+tags.join(', ')+')'; }
 function badgeFor(o, fallback){
   if(!o) return {cls:fallback||'unknown', text:fallback||'?'};
+  if(o.cve) return {cls:'cve', text:'⚠ '+o.cve+' CVE'};
   if(o.deprecated) return {cls:'dep', text:'deprecated'};
   if(o.kind==='current') return {cls:'none', text:'current'};
   if(o.kind==='down') return {cls:'down', text:'downgrade'};
@@ -238,7 +241,7 @@ function render() {
           const sel = chosen.get(d.id) || d.latest;
           html += '<div><select class="ver" data-id="'+esc(d.id)+'"'+(d.pinned?' disabled':'')+'>';
           for (const o of d.options) {
-            const oc = o.deprecated ? ' class="opt-dep"' : (o.kind==='down' ? ' class="opt-down"' : '');
+            const oc = o.cve ? ' class="opt-cve"' : (o.deprecated ? ' class="opt-dep"' : (o.kind==='down' ? ' class="opt-down"' : ''));
             html += '<option value="'+esc(o.version)+'"'+oc+' '+(o.version===sel?'selected':'')+'>'+esc(optLabel(o))+'</option>';
           }
           html += '</select></div>';

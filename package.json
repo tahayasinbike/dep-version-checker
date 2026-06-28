@@ -2,7 +2,7 @@
   "name": "dep-version-checker",
   "displayName": "Dependency Version Checker",
   "description": "Outdated dependencies across npm, Python, Rust & PHP with CVE security checks — major/minor/patch aware, update one by one or in bulk.",
-  "version": "0.2.0",
+  "version": "0.1.4",
   "publisher": "tahayasinbike",
   "license": "MIT",
   "icon": "resources/icon.png",

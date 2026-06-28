@@ -1,41 +1,59 @@
 import { postJson } from './http';
+import { compareVersions } from './semver';
 
-export interface Vuln {
+export interface RawVuln {
   id: string;
   summary?: string;
   severity?: string;
   fixed?: string;
-}
-
-export interface VulnQuery {
-  ecosystem: string;
-  name: string;
-  version: string;
+  affected: any[];
 }
 
 const QUERY = 'https://api.osv.dev/v1/query';
-const BATCH = 'https://api.osv.dev/v1/querybatch';
 
-export async function queryBatch(items: VulnQuery[], timeoutMs: number): Promise<string[][]> {
-  if (items.length === 0) return [];
-  const res = await postJson<any>(
-    BATCH,
-    { queries: items.map((i) => ({ version: i.version, package: { name: i.name, ecosystem: i.ecosystem } })) },
-    { timeoutMs }
-  );
-  return (res.results ?? []).map((r: any) => (r?.vulns ?? []).map((v: any) => v.id as string));
+export async function queryPackage(ecosystem: string, name: string, timeoutMs: number): Promise<RawVuln[]> {
+  const res = await postJson<any>(QUERY, { package: { name, ecosystem } }, { timeoutMs });
+  return (res.vulns ?? []).map((v: any) => ({
+    ...parseVuln(v),
+    affected: (v.affected ?? []).filter(
+      (a: any) => a.package?.name === name && a.package?.ecosystem === ecosystem
+    ),
+  }));
 }
 
-export async function queryVulns(item: VulnQuery, timeoutMs: number): Promise<Vuln[]> {
-  const res = await postJson<any>(
-    QUERY,
-    { version: item.version, package: { name: item.name, ecosystem: item.ecosystem } },
-    { timeoutMs }
-  );
-  return (res.vulns ?? []).map(parseVuln);
+export function affectsVersion(version: string, raw: RawVuln): boolean {
+  for (const a of raw.affected ?? []) {
+    if (Array.isArray(a.versions) && a.versions.includes(version)) return true;
+    for (const r of a.ranges ?? []) {
+      if ((r.type === 'SEMVER' || r.type === 'ECOSYSTEM') && affectedByRange(version, r)) return true;
+    }
+  }
+  return false;
 }
 
-function parseVuln(v: any): Vuln {
+function affectedByRange(v: string, range: any): boolean {
+  let introduced: string | null = null;
+  for (const e of range.events ?? []) {
+    if (e.introduced !== undefined) {
+      introduced = e.introduced;
+    } else if (e.fixed !== undefined && introduced !== null) {
+      const lo = introduced === '0' ? null : introduced;
+      if ((lo === null || compareVersions(v, lo) >= 0) && compareVersions(v, e.fixed) < 0) return true;
+      introduced = null;
+    } else if (e.last_affected !== undefined && introduced !== null) {
+      const lo = introduced === '0' ? null : introduced;
+      if ((lo === null || compareVersions(v, lo) >= 0) && compareVersions(v, e.last_affected) <= 0) return true;
+      introduced = null;
+    }
+  }
+  if (introduced !== null) {
+    const lo = introduced === '0' ? null : introduced;
+    if (lo === null || compareVersions(v, lo) >= 0) return true;
+  }
+  return false;
+}
+
+function parseVuln(v: any): { id: string; summary?: string; severity?: string; fixed?: string } {
   const cve = (v.aliases ?? []).find((a: string) => a.startsWith('CVE-'));
   return { id: cve ?? v.id, summary: v.summary, severity: v.database_specific?.severity, fixed: firstFixed(v) };
 }

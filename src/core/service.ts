@@ -12,7 +12,7 @@ import {
   upgradeableVersions,
 } from './semver';
 import { PinStore } from './pinStore';
-import { Vuln, queryBatch, queryVulns } from './vuln';
+import { RawVuln, affectsVersion, queryPackage } from './vuln';
 import {
   EcosystemProvider,
   allProviders,
@@ -47,6 +47,7 @@ export class DepService {
   private groups: ManifestGroup[] = [];
   private versionCache = new Map<string, VersionInfo | undefined>();
   private peerCache = new Map<string, Record<string, string>>();
+  private vulnCache = new Map<string, RawVuln[]>();
   private readonly _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChange = this._onDidChange.event;
   scanning = false;
@@ -140,6 +141,7 @@ export class DepService {
             versions: [],
             deprecated: [],
             vulns: [],
+            vulnVersions: {},
             pinned: this.pins.has(`${vscode.workspace.asRelativePath(uri.fsPath)}::${p.section}::${p.name}`),
             pinNote: this.pins.getNote(`${vscode.workspace.asRelativePath(uri.fsPath)}::${p.section}::${p.name}`),
           };
@@ -170,6 +172,16 @@ export class DepService {
             if (!includePre) {
               upgradeable = upgradeable.filter((v) => compareVersions(v, latest) <= 0);
             }
+            let vulns: string[] = [];
+            const vulnVersions: Record<string, string[]> = {};
+            const raws = await this.packageVulns(provider.osvEcosystem, p.name, timeoutMs);
+            if (raws.length) {
+              vulns = raws.filter((r) => affectsVersion(current, r)).map((r) => r.id);
+              for (const v of versionsDesc) {
+                const ids = raws.filter((r) => affectsVersion(v, r)).map((r) => r.id);
+                if (ids.length) vulnVersions[v] = ids;
+              }
+            }
             return {
               ...base,
               latest,
@@ -177,6 +189,8 @@ export class DepService {
               upgradeable,
               versions: versionsDesc,
               deprecated,
+              vulns,
+              vulnVersions,
             };
           } catch (e: any) {
             return { ...base, error: e?.message ?? 'error' };
@@ -199,53 +213,38 @@ export class DepService {
 
       groups.sort((a, b) => a.manifestPath.localeCompare(b.manifestPath));
       this.groups = groups;
-      await this.checkInstalledVulns(timeoutMs);
     } finally {
       this.scanning = false;
       this._onDidChange.fire();
     }
   }
 
-  private async checkInstalledVulns(timeoutMs: number): Promise<void> {
-    const targets: { dep: Dependency; eco: string }[] = [];
-    for (const g of this.groups) {
-      const provider = providerForFile(g.manifestPath);
-      if (!provider?.osvEcosystem) continue;
-      for (const d of g.dependencies) {
-        if (!d.error && d.current) targets.push({ dep: d, eco: provider.osvEcosystem });
-      }
-    }
-    if (targets.length === 0) return;
+  private async packageVulns(ecosystem: string | undefined, name: string, timeoutMs: number): Promise<RawVuln[]> {
+    if (!ecosystem) return [];
+    const key = `${ecosystem}:${name}`;
+    const cached = this.vulnCache.get(key);
+    if (cached) return cached;
+    let raws: RawVuln[] = [];
     try {
-      const ids = await queryBatch(
-        targets.map((t) => ({ ecosystem: t.eco, name: t.dep.name, version: t.dep.current! })),
-        timeoutMs
-      );
-      targets.forEach((t, i) => {
-        t.dep.vulns = ids[i] ?? [];
-      });
+      raws = await queryPackage(ecosystem, name, timeoutMs);
     } catch {
-      return;
+      raws = [];
     }
+    this.vulnCache.set(key, raws);
+    return raws;
   }
 
   async findTargetVulns(
     items: { id: string; version: string }[]
-  ): Promise<{ name: string; version: string; vulns: Vuln[] }[]> {
+  ): Promise<{ name: string; version: string; vulns: RawVuln[] }[]> {
     const timeoutMs = config().get<number>('requestTimeoutMs', 8000);
-    const out: { name: string; version: string; vulns: Vuln[] }[] = [];
+    const out: { name: string; version: string; vulns: RawVuln[] }[] = [];
     await mapLimit(items, 6, async (it) => {
       const found = this.findDependency(it.id);
       if (!found?.provider.osvEcosystem || !it.version) return;
-      try {
-        const vulns = await queryVulns(
-          { ecosystem: found.provider.osvEcosystem, name: found.dep.name, version: it.version },
-          timeoutMs
-        );
-        if (vulns.length) out.push({ name: found.dep.name, version: it.version, vulns });
-      } catch {
-        return;
-      }
+      const raws = await this.packageVulns(found.provider.osvEcosystem, found.dep.name, timeoutMs);
+      const hits = raws.filter((r) => affectsVersion(it.version, r));
+      if (hits.length) out.push({ name: found.dep.name, version: it.version, vulns: hits });
     });
     return out;
   }

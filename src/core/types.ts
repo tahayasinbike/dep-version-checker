@@ -25,6 +25,7 @@ export interface Dependency extends ParsedDep {
   pinned: boolean;
   pinNote?: string;
   vulns: string[];
+  vulnVersions: Record<string, string[]>;
   error?: string;
 }
 
