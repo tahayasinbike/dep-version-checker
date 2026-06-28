@@ -130,11 +130,11 @@ button { font-family: inherit; font-size: inherit; cursor: pointer; border: none
 .c-cur .arrow { opacity: .45; margin-left: 5px; }
 .c-badge { text-align: right; }
 .pincell { display: flex; gap: 1px; align-items: center; justify-content: flex-end; }
-.pin, .notebtn { background: none; border: none; padding: 2px; cursor: pointer; opacity: .35; font-size: 13px; line-height: 1; color: var(--vscode-foreground); border-radius: 4px; }
-.pin:hover, .notebtn:hover { opacity: .9; background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,.15)); }
-.pin.on { opacity: 1; color: var(--vscode-charts-orange, #ff9d3c); }
-.notebtn.has { opacity: 1; color: var(--vscode-charts-blue, #4d8de0); }
-.dep.pinned { background: rgba(255,140,40,.06); }
+.pin, .notebtn { background: none; border: none; padding: 2px; cursor: pointer; opacity: .3; font-size: 13px; line-height: 1; color: var(--vscode-foreground); border-radius: 4px; filter: grayscale(1); }
+.pin:hover, .notebtn:hover { opacity: .9; filter: none; background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,.15)); }
+.pin.on { opacity: 1; filter: none; background: rgba(255,140,40,.22); box-shadow: 0 0 0 1px rgba(255,140,40,.5); }
+.notebtn.has { opacity: 1; filter: none; }
+.dep.pinned { background: rgba(255,140,40,.09); box-shadow: inset 3px 0 0 var(--vscode-charts-orange, #ff9d3c); }
 .dep.pinned .name { color: var(--vscode-descriptionForeground); }
 select:disabled { opacity: .5; }
 select { width: 100%; background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border)); border-radius: 4px; padding: 3px 4px; }

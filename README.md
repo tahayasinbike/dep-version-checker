@@ -10,6 +10,8 @@ For **npm · Python · Rust · PHP** projects: spot outdated packages at a glanc
 ![Open VSX Downloads](https://img.shields.io/open-vsx/dt/tahayasinbike/dep-version-checker?color=8b7bd8&style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-4d8de0?style=for-the-badge)
 
+![Dependency Version Checker in action](resources/demo.gif)
+
 </div>
 
 ---

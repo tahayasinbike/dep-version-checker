@@ -28,6 +28,14 @@
     "color": "#171327",
     "theme": "dark"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tahayasinbike/dep-version-checker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tahayasinbike/dep-version-checker/issues"
+  },
+  "homepage": "https://github.com/tahayasinbike/dep-version-checker#readme",
   "main": "./out/extension.js",
   "activationEvents": [
     "workspaceContains:**/package.json",
