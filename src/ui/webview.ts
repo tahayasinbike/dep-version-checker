@@ -138,8 +138,8 @@ select { width: 100%; background: var(--vscode-dropdown-background); color: var(
 option.opt-dep { color: #ff9d3c; }
 option.opt-down { color: #9aa0a6; }
 input[type=checkbox] { cursor: pointer; accent-color: var(--vscode-button-background); }
-.empty { padding: 24px 16px; text-align: center; opacity: .7; }
-.spin { display: inline-block; animation: spin 1s linear infinite; }
+.empty { padding: 24px 16px; text-align: center; opacity: .7; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.spinner { width: 18px; height: 18px; border: 2px solid var(--vscode-foreground); border-right-color: transparent; border-radius: 50%; opacity: .55; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
@@ -190,7 +190,7 @@ function visibleDeps(g){ return g.dependencies.filter(d => !filter || d.name.toL
 function render() {
   const c = el('content');
   if (state.scanning && state.groups.length === 0) {
-    c.innerHTML = '<div class="empty"><span class="spin">⟳</span> Taranıyor…</div>';
+    c.innerHTML = '<div class="empty"><span class="spinner"></span><span>Taranıyor…</span></div>';
     return;
   }
   if (state.groups.length === 0) {
