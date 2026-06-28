@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Demo GIF added to the README (rendered on the marketplace via the public repository).
+- Clearer pinned indicator: full-color pin with an orange chip and an accent bar on the pinned row.
+
 ## 0.1.1
 
 - Add a **note** to pinned packages via ⓘ: document why a version is pinned and share it with your team through git (`.vscode/dep-version-checker.json` → `notes`).
