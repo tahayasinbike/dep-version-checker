@@ -9,6 +9,7 @@ export interface EcosystemProvider {
   fetchVersions(name: string, timeoutMs: number): Promise<VersionInfo | undefined>;
   rewrite(content: string, dep: ParsedDep, newVersion: string): string;
   installCommand(manifestPath: string): string;
+  peerDependencies?(name: string, version: string, timeoutMs: number): Promise<Record<string, string>>;
 }
 
 const registry: EcosystemProvider[] = [];

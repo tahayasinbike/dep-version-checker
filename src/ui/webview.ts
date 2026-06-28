@@ -46,13 +46,7 @@ export class DepWebviewProvider implements vscode.WebviewViewProvider {
         break;
       case 'update':
         if (Array.isArray(msg.items) && msg.items.length > 0) {
-          await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: `${msg.items.length} paket güncelleniyor` },
-            async () => {
-              const n = await this.service.updateMany(msg.items);
-              vscode.window.showInformationMessage(`${n} bağımlılık güncellendi.`);
-            }
-          );
+          vscode.commands.executeCommand('depChecker.applyUpdates', msg.items);
         }
         break;
     }

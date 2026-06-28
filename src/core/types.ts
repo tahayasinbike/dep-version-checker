@@ -26,6 +26,15 @@ export interface Dependency extends ParsedDep {
   error?: string;
 }
 
+export interface Conflict {
+  source: string;
+  sourceVersion: string;
+  peer: string;
+  requiredRange: string;
+  actual: string;
+  fix?: { id: string; version: string };
+}
+
 export interface ManifestGroup {
   manifestPath: string;
   ecosystem: string;

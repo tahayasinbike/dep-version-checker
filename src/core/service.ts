@@ -1,13 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { Dependency, ManifestGroup, VersionInfo } from './types';
+import { Conflict, Dependency, ManifestGroup, VersionInfo } from './types';
 import {
   classifyUpdate,
   cleanVersion,
   compareVersions,
   isPrerelease,
   pickLatest,
+  satisfies,
   upgradeableVersions,
 } from './semver';
 import { PinStore } from './pinStore';
@@ -44,6 +45,7 @@ export function depId(d: Dependency): string {
 export class DepService {
   private groups: ManifestGroup[] = [];
   private versionCache = new Map<string, VersionInfo | undefined>();
+  private peerCache = new Map<string, Record<string, string>>();
   private readonly _onDidChange = new vscode.EventEmitter<void>();
   readonly onDidChange = this._onDidChange.event;
   scanning = false;
@@ -261,6 +263,71 @@ export class DepService {
     let total = 0;
     for (const g of [...this.groups]) total += await this.updateGroup(g.manifestPath);
     return total;
+  }
+
+  async findConflicts(items: { id: string; version: string }[]): Promise<Conflict[]> {
+    const timeoutMs = config().get<number>('requestTimeoutMs', 8000);
+    const conflicts: Conflict[] = [];
+    const selected = new Set(items.map((i) => i.id));
+    const byManifest = new Map<string, { dep: Dependency; version: string }[]>();
+    for (const it of items) {
+      const found = this.findDependency(it.id);
+      if (!found || !it.version) continue;
+      const arr = byManifest.get(found.dep.manifestPath) ?? [];
+      arr.push({ dep: found.dep, version: it.version });
+      byManifest.set(found.dep.manifestPath, arr);
+    }
+
+    for (const [manifestPath, list] of byManifest) {
+      const provider = providerForFile(manifestPath);
+      if (!provider?.peerDependencies) continue;
+      const group = this.groups.find((g) => g.manifestPath === manifestPath);
+      if (!group) continue;
+
+      const resolved = new Map<string, string>();
+      const depByName = new Map<string, Dependency>();
+      for (const d of group.dependencies) {
+        depByName.set(d.name, d);
+        if (d.current) resolved.set(d.name, cleanVersion(d.current));
+      }
+      for (const { dep, version } of list) resolved.set(dep.name, cleanVersion(version));
+
+      await mapLimit(list, 6, async ({ dep, version }) => {
+        const key = `${dep.name}@${version}`;
+        let peers = this.peerCache.get(key);
+        if (!peers) {
+          try {
+            peers = await provider.peerDependencies!(dep.name, version, timeoutMs);
+          } catch {
+            peers = {};
+          }
+          this.peerCache.set(key, peers);
+        }
+        for (const [peerName, range] of Object.entries(peers)) {
+          const actual = resolved.get(peerName);
+          if (!actual || satisfies(actual, range)) continue;
+          const peerDep = depByName.get(peerName);
+          let fix: { id: string; version: string } | undefined;
+          if (peerDep && !peerDep.pinned) {
+            const candidate = peerDep.versions
+              .filter((v) => satisfies(v, range) && compareVersions(v, actual) > 0)
+              .sort(compareVersions)[0];
+            if (candidate && !selected.has(depId(peerDep))) {
+              fix = { id: depId(peerDep), version: candidate };
+            }
+          }
+          conflicts.push({
+            source: dep.name,
+            sourceVersion: version,
+            peer: peerName,
+            requiredRange: range,
+            actual,
+            fix,
+          });
+        }
+      });
+    }
+    return conflicts;
   }
 
   private writeManifest(manifestPath: string, transform: (content: string) => string): void {

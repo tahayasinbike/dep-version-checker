@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { DepService, depId } from './core/service';
 import { PinStore } from './core/pinStore';
 import { Dependency } from './core/types';
-import { classifyUpdate } from './core/semver';
+import { classifyUpdate, compareVersions } from './core/semver';
 import { registerProvider } from './providers/provider';
 import { npmProvider } from './providers/npm';
 import { pipProvider } from './providers/pip';
@@ -50,8 +50,53 @@ export function activate(context: vscode.ExtensionContext) {
       () => service.scan()
     );
 
+  const applyUpdates = async (items: { id: string; version: string }[]) => {
+    if (!items.length) return;
+    let finalItems = items;
+    const conflicts = await service.findConflicts(items);
+    if (conflicts.length) {
+      const fixMap = new Map<string, string>();
+      for (const c of conflicts) {
+        if (!c.fix) continue;
+        const prev = fixMap.get(c.fix.id);
+        if (!prev || compareVersions(c.fix.version, prev) > 0) fixMap.set(c.fix.id, c.fix.version);
+      }
+      const fixes = [...fixMap].map(([id, version]) => ({ id, version }));
+      const lines = conflicts
+        .slice(0, 10)
+        .map((c) => `• ${c.source}@${c.sourceVersion} → ${c.peer} "${c.requiredRange}" gerekiyor (mevcut ${c.peer}@${c.actual})`);
+      const more = conflicts.length > 10 ? `\n… ve ${conflicts.length - 10} tane daha` : '';
+      const detail = fixes.length
+        ? `Otomatik düzelt: ${fixes.map((f) => f.id.split('::').pop() + '@' + f.version).join(', ')} de uyumlu sürüme çekilecek.`
+        : 'Kurulumda çakışma sürerse ayarlardan npmPeerConflictStrategy = legacy-peer-deps deneyebilirsiniz.';
+      const buttons = fixes.length ? ['Otomatik düzelt & güncelle', 'Yine de güncelle'] : ['Yine de güncelle'];
+      const choice = await vscode.window.showWarningMessage(
+        `Peer dependency uyuşmazlığı bulundu:\n\n${lines.join('\n')}${more}`,
+        { modal: true, detail },
+        ...buttons
+      );
+      if (!choice) return;
+      if (choice.startsWith('Otomatik')) {
+        const merged = new Map(items.map((i) => [i.id, i.version]));
+        for (const f of fixes) if (!merged.has(f.id)) merged.set(f.id, f.version);
+        finalItems = [...merged].map(([id, version]) => ({ id, version }));
+      }
+    }
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `${finalItems.length} paket güncelleniyor` },
+      async () => {
+        const n = await service.updateMany(finalItems);
+        vscode.window.showInformationMessage(`${n} bağımlılık güncellendi.`);
+      }
+    );
+  };
+
   context.subscriptions.push(
     vscode.commands.registerCommand('depChecker.refresh', refresh),
+
+    vscode.commands.registerCommand('depChecker.applyUpdates', (items) =>
+      applyUpdates(Array.isArray(items) ? items : [])
+    ),
 
     vscode.commands.registerCommand('depChecker.togglePin', async (arg) => {
       const id = arg?.id;
@@ -76,10 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
       const found = service.findDependency(id);
       if (!found?.dep.latest) return;
       const version = arg?.version ?? found.dep.latest;
-      await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: `${found.dep.name} → ${version}` },
-        () => service.updateDependency(id, version)
-      );
+      await applyUpdates([{ id, version }]);
     }),
 
     vscode.commands.registerCommand('depChecker.updateToVersion', async (arg) => {
@@ -101,10 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
         placeHolder: 'Bir sürüm seçin',
       });
       if (!picked) return;
-      await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: `${dep.name} → ${picked.label}` },
-        () => service.updateDependency(id, picked.label)
-      );
+      await applyUpdates([{ id, version: picked.label }]);
     }),
 
     vscode.commands.registerCommand('depChecker.updateAll', async () => {
@@ -128,13 +167,15 @@ export function activate(context: vscode.ExtensionContext) {
         'Güncelle'
       );
       if (ok !== 'Güncelle') return;
-      await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Tümü güncelleniyor' },
-        async () => {
-          const updated = await service.updateAll();
-          vscode.window.showInformationMessage(`${updated} bağımlılık güncellendi.`);
+      const items: { id: string; version: string }[] = [];
+      for (const g of service.getGroups()) {
+        for (const d of g.dependencies) {
+          if (d.latest && d.updateType !== 'none' && d.updateType !== 'unknown' && !service.isPinned(depId(d))) {
+            items.push({ id: depId(d), version: d.latest });
+          }
         }
-      );
+      }
+      await applyUpdates(items);
     })
   );
 

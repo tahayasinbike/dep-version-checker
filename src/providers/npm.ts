@@ -106,4 +106,16 @@ export const npmProvider: EcosystemProvider = {
       return 'bun install';
     return 'npm install';
   },
+
+  async peerDependencies(name, version, timeoutMs) {
+    const data = await fetchJson<any>(`https://registry.npmjs.org/${name}/${version}`, { timeoutMs });
+    const peers = data.peerDependencies ?? {};
+    const meta = data.peerDependenciesMeta ?? {};
+    const out: Record<string, string> = {};
+    for (const [p, range] of Object.entries(peers)) {
+      if (meta[p]?.optional) continue;
+      out[p] = String(range);
+    }
+    return out;
+  },
 };
