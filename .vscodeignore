@@ -1,5 +1,6 @@
 .vscode/**
 src/**
+resources/demo.gif
 .gitignore
 tsconfig.json
 **/*.map
